@@ -1,0 +1,1874 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnÃ¡lise FundiÃ¡ria - COGEP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- styles.css REMOVIDO para evitar conflitos com fullscreen -->
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .analise-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            width: 100vw !important;
+            height: 100vh !important;
+            gap: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #e0e0e0;
+            height: 100%;
+        }
+
+        .sidebar h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .map-container {
+            position: relative !important;
+            height: 100% !important;
+            width: 100% !important;
+            min-height: 100vh !important;
+        }
+
+        #map {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 100vh !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .score-badge.baixo {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .score-badge.medio, .score-badge.mÃ©dio {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .score-badge.alto {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .score-badge.critico, .score-badge.crÃ­tico {
+            background: #dc3545;
+            color: white;
+        }
+
+        .resultado-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .resultado-section h3 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .confrontante-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: white;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .sobreposicao-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        #resultados {
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 2px solid #333;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="analise-container">
+        <div class="sidebar">
+            <h1>ðŸ”¬ AnÃ¡lise FundiÃ¡ria</h1>
+            <p style="font-size: 13px; color: #666; margin-bottom: 20px;">
+                Sistema de detecÃ§Ã£o de sobreposiÃ§Ãµes e anÃ¡lise de viabilidade
+            </p>
+
+            <!-- SeÃ§Ã£o de ImportaÃ§Ã£o RÃ¡pida -->
+            <div style="background: #f0f8ff; border: 2px solid #007bff; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #007bff;">
+                    ðŸ“¥ Importar Nova Propriedade
+                </h3>
+                <p style="font-size: 11px; color: #666; margin-bottom: 10px;">
+                    Arraste ou clique para adicionar KML/SHP/DXF/GeoJSON
+                </p>
+
+                <div id="quickUploadArea" style="
+                    border: 2px dashed #007bff;
+                    border-radius: 8px;
+                    padding: 20px;
+                    text-align: center;
+                    background: white;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                ">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 2em; color: #007bff; margin-bottom: 8px;"></i>
+                    <p style="margin: 0; font-size: 12px; color: #666;">Clique ou arraste arquivo aqui</p>
+                    <small style="font-size: 10px; color: #999;">KML, KMZ, SHP, DXF, GeoJSON</small>
+                </div>
+
+                <input type="file" id="quickFileInput" accept=".kml,.kmz,.shp,.zip,.dxf,.geojson,.json" style="display: none;">
+
+                <div id="quickFileInfo" style="display: none; margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 5px; font-size: 11px;">
+                    <strong>ðŸ“„ <span id="quickFileName"></span></strong>
+                    <button onclick="clearQuickFile()" style="float: right; background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;">âœ•</button>
+                </div>
+
+                <input type="text" id="quickNomePropriedade" placeholder="Nome da propriedade"
+                    style="width: 100%; padding: 8px; margin-top: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px;">
+
+                <button onclick="importarPropriedadeRapido()" id="quickImportBtn" class="btn btn-primary"
+                    style="width: 100%; margin-top: 8px; padding: 8px; font-size: 12px;" disabled>
+                    ðŸ“¥ Importar e Adicionar ao Mapa
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>Selecionar Propriedade:</label>
+                <select id="propriedadeSelect" class="form-control">
+                    <option value="">Carregando...</option>
+                </select>
+            </div>
+
+            <button onclick="executarAnalise()" class="btn btn-primary btn-block">
+                ðŸ” Executar AnÃ¡lise Completa
+            </button>
+
+            <!-- BotÃ£o Download Camadas CAR -->
+            <div style="margin-top: 15px; padding: 15px; background: #f0fff4; border: 2px solid #28a745; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #28a745;">
+                    ðŸŒ¾ Camadas CAR
+                </h4>
+                <button onclick="baixarCamadasCAR()" id="btnBaixarCAR" class="btn btn-primary" style="width: 100%; background: #28a745; border: none; margin-bottom: 10px;" disabled>
+                    ðŸ“¥ Baixar Todas as Camadas
+                </button>
+                <div id="carDownloadStatus" style="display: none; font-size: 11px; color: #666; margin-top: 5px;">
+                    â³ Aguardando download...
+                </div>
+            </div>
+
+            <!-- Controles de Camadas do Mapa -->
+            <div id="controlesCAR" style="display: none; margin-top: 15px; padding: 15px; background: #fff; border: 2px solid #ddd; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #333;">
+                    ðŸ—ºï¸ Camadas do Mapa
+                </h4>
+
+                <div style="margin-bottom: 15px;">
+                    <strong style="font-size: 12px; color: #666;">Camadas Principais:</strong>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-propriedade" checked onchange="toggleLayer('propriedade')">
+                        ðŸ”µ Propriedade Principal
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-confrontantes" checked onchange="toggleLayer('confrontantes')">
+                        ðŸŸ¡ Confrontantes
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-sigef" checked onchange="toggleLayer('sigef')">
+                        ðŸŸ¢ SIGEF
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-sobreposicoes" checked onchange="toggleLayer('sobreposicoes')">
+                        ðŸ”´ SobreposiÃ§Ãµes
+                    </label>
+                </div>
+
+                <hr style="margin: 15px 0; border: 1px solid #eee;">
+
+                <div>
+                    <strong style="font-size: 12px; color: #666;">Camadas CAR:</strong>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-uso-solo" onchange="toggleLayer('uso_solo')">
+                        ðŸŸ¤ Uso do Solo
+                        <span class="layer-count" style="color: #999;">(0)</span>
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-hidrografia" onchange="toggleLayer('hidrografia')">
+                        ðŸ”µ Hidrografia
+                        <span class="layer-count" style="color: #999;">(0)</span>
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-reserva-legal" onchange="toggleLayer('reserva_legal')">
+                        ðŸŸ¢ Reserva Legal
+                        <span class="layer-count" style="color: #999;">(0)</span>
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-vegetacao" onchange="toggleLayer('vegetacao_nativa')">
+                        ðŸŒ³ VegetaÃ§Ã£o Nativa
+                        <span class="layer-count" style="color: #999;">(0)</span>
+                    </label>
+                    <label style="display: block; margin: 8px 0; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="layer-app" onchange="toggleLayer('app')">
+                        ðŸ›¡ï¸ APP
+                        <span class="layer-count" style="color: #999;">(0)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="resultados" style="display:none;">
+                <div class="resultado-section">
+                    <h3>ðŸ“Š Score de Viabilidade</h3>
+                    <div id="scoreDisplay"></div>
+                    <p id="recomendacao" style="margin-top:10px; font-size:13px;"></p>
+                </div>
+
+                <div class="resultado-section">
+                    <h3>âš ï¸ SobreposiÃ§Ãµes</h3>
+                    <div id="sobreposicoesDisplay"></div>
+                </div>
+
+                <div class="resultado-section">
+                    <h3>ðŸ‘¥ Confrontantes</h3>
+                    <div id="confrontantesDisplay"></div>
+                </div>
+
+                <div class="resultado-section" style="border-left-color: #6c757d;">
+                    <h3>ðŸ“„ Gerar RelatÃ³rios</h3>
+                    <div style="display: grid; gap: 10px; margin-top: 10px;">
+                        <button onclick="gerarRelatorioPDF()" class="btn btn-primary">
+                            ðŸ“„ AnÃ¡lise Completa (PDF)
+                        </button>
+                        <button onclick="gerarRelatorioConfrontantesPDF()" class="btn btn-primary">
+                            ðŸ‘¥ Confrontantes (PDF)
+                        </button>
+                        <button onclick="gerarRelatorioViabilidadePDF()" class="btn btn-primary">
+                            âœ… Viabilidade (PDF)
+                        </button>
+                        <button onclick="gerarRelatorioConfrontantesExcel()" class="btn btn-primary">
+                            ðŸ“Š Confrontantes (Excel)
+                        </button>
+                        <button onclick="gerarRelatorioConfrontantesCSV()" class="btn btn-primary">
+                            ðŸ“‹ Confrontantes (CSV)
+                        </button>
+                        <button onclick="gerarRelatorioSobreposicoesExcel()" class="btn btn-primary">
+                            âš ï¸ SobreposiÃ§Ãµes (Excel)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="resultado-section" style="border-left-color: #28a745;">
+                    <h3>ðŸ—ºï¸ Exportar Dados Georeferenciados</h3>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        Formatos compatÃ­veis com GIS (QGIS, ArcGIS, AutoCAD)
+                    </p>
+                    <div style="display: grid; gap: 10px; margin-top: 10px;">
+                        <button onclick="exportarConfrontantesGeoJSON()" class="btn btn-primary" style="background: #28a745;">
+                            ðŸ“ Confrontantes (GeoJSON)
+                        </button>
+                        <button onclick="exportarConfrontantesKML()" class="btn btn-primary" style="background: #28a745;">
+                            ðŸ—ºï¸ Confrontantes (KML)
+                        </button>
+                        <button onclick="exportarConfrontantesShapefile()" class="btn btn-primary" style="background: #28a745;">
+                            ðŸ“¦ Confrontantes (Shapefile)
+                        </button>
+                        <button onclick="exportarConfrontantesDXF()" class="btn btn-primary" style="background: #28a745;">
+                            ðŸ“ Confrontantes (DXF)
+                        </button>
+                        <button onclick="exportarSobreposicoesGeoJSON()" class="btn btn-primary" style="background: #dc3545;">
+                            âš ï¸ SobreposiÃ§Ãµes (GeoJSON)
+                        </button>
+                        <button onclick="exportarSobreposicoesKML()" class="btn btn-primary" style="background: #dc3545;">
+                            âš ï¸ SobreposiÃ§Ãµes (KML)
+                        </button>
+                        <button onclick="exportarSobreposicoesShapefile()" class="btn btn-primary" style="background: #dc3545;">
+                            âš ï¸ SobreposiÃ§Ãµes (Shapefile)
+                        </button>
+                        <button onclick="exportarSobreposicoesDXF()" class="btn btn-primary" style="background: #dc3545;">
+                            âš ï¸ SobreposiÃ§Ãµes (DXF)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+
+            <div class="map-legend">
+                <strong style="display:block; margin-bottom:10px;">ðŸ—ºï¸ Controle de Camadas</strong>
+
+                <!-- Propriedade Local -->
+                <div class="legend-item" style="padding: 5px 0; cursor: pointer;" onclick="toggleLayer('propriedade')">
+                    <input type="checkbox" id="layer-propriedade" checked onchange="toggleLayer('propriedade')" style="margin-right: 5px;">
+                    <div class="legend-color" style="background:#007bff;opacity:0.3;"></div>
+                    <span>Propriedade Analisada</span>
+                </div>
+
+                <!-- SobreposiÃ§Ãµes -->
+                <div class="legend-item" style="padding: 5px 0; cursor: pointer;" onclick="toggleLayer('sobreposicoes')">
+                    <input type="checkbox" id="layer-sobreposicoes" checked onchange="toggleLayer('sobreposicoes')" style="margin-right: 5px;">
+                    <div class="legend-color" style="background:#FF0000;opacity:0.4;"></div>
+                    <span>SobreposiÃ§Ãµes (Vermelho)</span>
+                </div>
+
+                <!-- Confrontantes -->
+                <div class="legend-item" style="padding: 5px 0; cursor: pointer;" onclick="toggleLayer('confrontantes')">
+                    <input type="checkbox" id="layer-confrontantes" checked onchange="toggleLayer('confrontantes')" style="margin-right: 5px;">
+                    <div class="legend-color" style="background:#FFD700;opacity:0.3;"></div>
+                    <span>Confrontantes (Dourado)</span>
+                </div>
+
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+
+                <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                    <strong>Dica:</strong> Clique nas camadas para mostrar/ocultar
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map, propriedadeLayer, sigefLayer, conflitosLayer;
+        let layerGroupsCAR = {};
+        const API_BASE = 'http://localhost:3001/api';
+
+        // Paleta de cores para camadas CAR
+        const coresCAR = {
+            uso_solo: '#8B4513',         // Marrom
+            hidrografia: '#00BCD4',      // Azul Ãgua
+            reserva_legal: '#2E7D32',    // Verde Escuro
+            vegetacao_nativa: '#66BB6A', // Verde Claro
+            app: '#FFC107'               // Amarelo
+        };
+
+        function initMap() {
+            map = L.map('map').setView([-25.4284, -49.2733], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Â© OpenStreetMap'
+            }).addTo(map);
+
+            // Inicializar layer groups (adicionados ao mapa baseado nos checkboxes)
+            propriedadeLayer = L.layerGroup();
+            sigefLayer = L.layerGroup();
+            conflitosLayer = L.layerGroup();
+
+            // Adicionar ao mapa as camadas que estÃ£o marcadas por padrÃ£o
+            propriedadeLayer.addTo(map);
+            sigefLayer.addTo(map);
+            conflitosLayer.addTo(map);
+
+            // Inicializar layer groups para CAR (nÃ£o adicionados ao mapa por padrÃ£o)
+            layerGroupsCAR = {
+                uso_solo: L.layerGroup(),
+                hidrografia: L.layerGroup(),
+                reserva_legal: L.layerGroup(),
+                vegetacao_nativa: L.layerGroup(),
+                app: L.layerGroup()
+            };
+
+            // ForÃ§ar redimensionamento apÃ³s 100ms
+            setTimeout(() => {
+                map.invalidateSize();
+                console.log('âœ… Mapa redimensionado para fullscreen');
+            }, 100);
+        }
+
+        // =====================================================
+        // CONTROLE DE CAMADAS
+        // =====================================================
+
+        function toggleLayer(layerName) {
+            const checkbox = document.getElementById(`layer-${layerName.replace('_', '-')}`);
+
+            if (!checkbox) {
+                console.warn(`âš ï¸  Checkbox nÃ£o encontrado para camada: ${layerName}`);
+                return;
+            }
+
+            switch(layerName) {
+                case 'propriedade':
+                    if (!propriedadeLayer) {
+                        console.warn('âš ï¸  propriedadeLayer nÃ£o inicializada');
+                        return;
+                    }
+                    if (checkbox.checked) {
+                        if (!map.hasLayer(propriedadeLayer)) {
+                            propriedadeLayer.addTo(map);
+                            console.log('âœ… Camada "Propriedade" ativada');
+                        }
+                    } else {
+                        if (map.hasLayer(propriedadeLayer)) {
+                            map.removeLayer(propriedadeLayer);
+                            console.log('âŒ Camada "Propriedade" desativada');
+                        }
+                    }
+                    break;
+
+                case 'confrontantes':
+                case 'sigef':
+                    if (!sigefLayer) {
+                        console.warn('âš ï¸  sigefLayer nÃ£o inicializada');
+                        return;
+                    }
+                    if (checkbox.checked) {
+                        if (!map.hasLayer(sigefLayer)) {
+                            sigefLayer.addTo(map);
+                            console.log('âœ… Camada "Confrontantes/SIGEF" ativada');
+                        }
+                    } else {
+                        if (map.hasLayer(sigefLayer)) {
+                            map.removeLayer(sigefLayer);
+                            console.log('âŒ Camada "Confrontantes/SIGEF" desativada');
+                        }
+                    }
+                    break;
+
+                case 'sobreposicoes':
+                    if (!conflitosLayer) {
+                        console.warn('âš ï¸  conflitosLayer nÃ£o inicializada');
+                        return;
+                    }
+                    if (checkbox.checked) {
+                        if (!map.hasLayer(conflitosLayer)) {
+                            conflitosLayer.addTo(map);
+                            console.log('âœ… Camada "SobreposiÃ§Ãµes" ativada');
+                        }
+                    } else {
+                        if (map.hasLayer(conflitosLayer)) {
+                            map.removeLayer(conflitosLayer);
+                            console.log('âŒ Camada "SobreposiÃ§Ãµes" desativada');
+                        }
+                    }
+                    break;
+
+                // Camadas CAR
+                case 'uso_solo':
+                case 'hidrografia':
+                case 'reserva_legal':
+                case 'vegetacao_nativa':
+                case 'app':
+                    if (layerGroupsCAR[layerName]) {
+                        if (checkbox.checked) {
+                            if (!map.hasLayer(layerGroupsCAR[layerName])) {
+                                layerGroupsCAR[layerName].addTo(map);
+                                console.log(`âœ… Camada CAR "${layerName}" ativada`);
+                            }
+                        } else {
+                            if (map.hasLayer(layerGroupsCAR[layerName])) {
+                                map.removeLayer(layerGroupsCAR[layerName]);
+                                console.log(`âŒ Camada CAR "${layerName}" desativada`);
+                            }
+                        }
+                    } else {
+                        console.warn(`âš ï¸  Camada CAR "${layerName}" nÃ£o inicializada`);
+                    }
+                    break;
+
+                default:
+                    console.warn(`âš ï¸  Camada desconhecida: ${layerName}`);
+            }
+        }
+
+        // =====================================================
+        // CARREGAMENTO DE DADOS
+        // =====================================================
+
+        async function carregarPropriedades() {
+            try {
+                console.log('ðŸ” Carregando propriedades...');
+
+                const response = await fetch(`${API_BASE}/propriedades/com-score`);
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const propriedades = await response.json();
+
+                console.log('âœ… Propriedades recebidas:', propriedades);
+
+                // Verificar se Ã© array
+                if (!Array.isArray(propriedades)) {
+                    console.error('âŒ Resposta nÃ£o Ã© array:', propriedades);
+                    throw new Error('Formato de resposta invÃ¡lido');
+                }
+
+                const select = document.getElementById('propriedadeSelect');
+                select.innerHTML = '<option value="">Selecione uma propriedade...</option>';
+
+                if (propriedades.length === 0) {
+                    select.innerHTML += '<option value="" disabled>Nenhuma propriedade cadastrada</option>';
+                    return;
+                }
+
+                propriedades.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.nome_propriedade} - ${p.municipio}/${p.uf}`;
+                    select.appendChild(option);
+                });
+
+                console.log(`âœ… ${propriedades.length} propriedades carregadas`);
+
+            } catch (error) {
+                console.error('âŒ Erro ao carregar propriedades:', error);
+                const select = document.getElementById('propriedadeSelect');
+                select.innerHTML = '<option value="" disabled>Erro ao carregar propriedades</option>';
+            }
+        }
+
+        async function executarAnalise() {
+            const propriedadeId = document.getElementById('propriedadeSelect').value;
+
+            if (!propriedadeId) {
+                alert('Selecione uma propriedade!');
+                return;
+            }
+
+            document.getElementById('resultados').style.display = 'block';
+
+            // Mostrar loading
+            document.getElementById('scoreDisplay').innerHTML = 'â³ Analisando...';
+            document.getElementById('sobreposicoesDisplay').innerHTML = 'â³ Verificando...';
+            document.getElementById('confrontantesDisplay').innerHTML = 'â³ Identificando...';
+
+            try {
+                console.log(`ðŸ”¬ Iniciando anÃ¡lise completa: Propriedade #${propriedadeId}`);
+
+                const response = await fetch(`${API_BASE}/analise/completa/${propriedadeId}`, {
+                    method: 'POST'
+                });
+
+                const resultado = await response.json();
+
+                console.log('Resultado da anÃ¡lise:', resultado);
+
+                // Exibir score
+                exibirScore(resultado.score);
+
+                // Exibir sobreposiÃ§Ãµes
+                exibirSobreposicoes(resultado.sobreposicoes);
+
+                // Exibir confrontantes
+                exibirConfrontantes(resultado.confrontantes);
+
+                // Carregar geometrias no mapa
+                await carregarNoMapa(propriedadeId, resultado);
+
+            } catch (error) {
+                console.error('Erro na anÃ¡lise:', error);
+                alert('Erro ao executar anÃ¡lise: ' + error.message);
+            }
+        }
+
+        function exibirScore(score) {
+            if (!score || !score.sucesso) {
+                document.getElementById('scoreDisplay').innerHTML =
+                    '<p style="color:red;">Erro ao calcular score</p>';
+                return;
+            }
+
+            const nivel = score.nivel_risco.toLowerCase();
+            const badgeClass = nivel === 'crÃ­tico' ? 'critico' : nivel;
+
+            document.getElementById('scoreDisplay').innerHTML = `
+                <div class="score-badge ${badgeClass}">
+                    ${score.score_total}/100 - ${score.nivel_risco}
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>Detalhes:</strong>
+                    <ul style="margin-top: 10px; padding-left: 20px; font-size:13px;">
+                        <li>SobreposiÃ§Ãµes: ${score.tem_sobreposicao ? 'âš ï¸ SIM' : 'âœ… NÃƒO'}</li>
+                        <li>Quantidade: ${score.qtd_sobreposicoes || 0}</li>
+                        <li>Ãrea sobreposta: ${parseFloat(score.area_sobreposta_m2 || 0).toFixed(2)} mÂ²</li>
+                        <li>Confrontantes: ${score.qtd_confrontantes || 0}</li>
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('recomendacao').innerHTML = `
+                <strong>ðŸ“‹ RecomendaÃ§Ã£o:</strong><br>
+                ${score.recomendacao}
+            `;
+        }
+
+        function exibirSobreposicoes(sobreposicoes) {
+            const container = document.getElementById('sobreposicoesDisplay');
+
+            if (!sobreposicoes || !sobreposicoes.sucesso || sobreposicoes.total_sobreposicoes === 0) {
+                container.innerHTML = '<p style="color:green;">âœ… Nenhuma sobreposiÃ§Ã£o detectada!</p>';
+                return;
+            }
+
+            let html = `<p><strong>âš ï¸ ${sobreposicoes.total_sobreposicoes} sobreposiÃ§Ã£o(Ãµes) encontrada(s)</strong></p>`;
+
+            sobreposicoes.sobreposicoes.forEach((s, idx) => {
+                const percentual = parseFloat(s.percentual_propriedade || 0).toFixed(1);
+                const areaSobrep = parseFloat(s.area_sobreposicao_m2 || 0).toFixed(2);
+                const areaTotal = s.area_total_sigef_ha ? parseFloat(s.area_total_sigef_ha).toFixed(2) + ' ha' : 'N/A';
+                const tipoTexto = s.tipo_sobreposicao ? s.tipo_sobreposicao.replace(/_/g, ' ').toUpperCase() : 'N/A';
+
+                html += `
+                    <div class="sobreposicao-item">
+                        <strong>SobreposiÃ§Ã£o #${idx + 1}</strong><br>
+                        <small><strong>ProprietÃ¡rio SIGEF:</strong> ${s.proprietario_sigef || 'N/A'}</small><br>
+                        <small><strong>Tipo:</strong> ${tipoTexto}</small><br>
+                        <small><strong>MatrÃ­cula:</strong> ${s.matricula_sigef || 'N/A'}</small><br>
+                        <small><strong>MunicÃ­pio:</strong> ${s.municipio_sigef || 'N/A'}</small><br>
+                        <small><strong>Ãrea Total Parcela:</strong> ${areaTotal}</small><br>
+                        <small><strong>Ãrea SobreposiÃ§Ã£o:</strong> ${areaSobrep} mÂ² (${percentual}%)</small><br>
+                        <small><strong>CÃ³digo SIGEF:</strong> ${s.codigo_parcela ? s.codigo_parcela.substring(0, 13) + '...' : 'N/A'}</small>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function exibirConfrontantes(confrontantes) {
+            const container = document.getElementById('confrontantesDisplay');
+
+            if (!confrontantes || !confrontantes.sucesso || confrontantes.total_confrontantes === 0) {
+                container.innerHTML = '<p>â„¹ï¸ Nenhum confrontante identificado no raio de 500m</p>';
+                return;
+            }
+
+            // Totais por fonte
+            const totalSIGEF = confrontantes.total_sigef || 0;
+            const totalCAR = confrontantes.total_car || 0;
+
+            let html = `
+                <p><strong>ðŸ‘¥ ${confrontantes.total_confrontantes} confrontante(s) identificado(s)</strong></p>
+                <p style="font-size: 12px; margin-top: -8px;">
+                    <span style="color: #FFD700;">ðŸ¢ SIGEF: ${totalSIGEF}</span> |
+                    <span style="color: #00FF00;">ðŸŒ¾ CAR: ${totalCAR}</span>
+                </p>
+            `;
+
+            confrontantes.confrontantes.slice(0, 10).forEach((c, idx) => {
+                const isSIGEF = !c.fonte || c.fonte === 'SIGEF';
+                const isCAR = c.fonte === 'CAR';
+
+                const icon = isSIGEF ? (c.tipo_contato === 'limite_comum' ? 'ðŸ”—' : 'ðŸ“') : 'ðŸŒ¾';
+                const iconColor = isSIGEF ? '#FFD700' : '#00FF00';
+                const fonteLabel = isSIGEF ? 'SIGEF' : 'CAR';
+
+                const tipoTexto = isSIGEF
+                    ? (c.tipo_contato === 'limite_comum' ? 'Limite Comum' : 'PrÃ³ximo')
+                    : c.tipo_confrontacao || 'PrÃ³ximo';
+
+                const area = c.area_ha ? parseFloat(c.area_ha).toFixed(2) + ' ha' : 'N/A';
+                const azimute = (c.azimute || c.azimute_graus) ? parseFloat(c.azimute || c.azimute_graus).toFixed(1) + 'Â°' : 'N/A';
+
+                html += `
+                    <div class="confrontante-item" style="border-left: 3px solid ${iconColor};">
+                        ${icon} <strong style="color: ${iconColor};">Confrontante #${idx + 1} [${fonteLabel}]</strong><br>
+                        <small><strong>ProprietÃ¡rio:</strong> ${c.proprietario || c.nome_proprietario || 'N/A'}</small><br>
+                        <small><strong>Tipo:</strong> ${tipoTexto}</small><br>
+                        ${isSIGEF && c.matricula ? `<small><strong>MatrÃ­cula:</strong> ${c.matricula}</small><br>` : ''}
+                        ${isCAR && c.codigo_car ? `<small><strong>CÃ³digo CAR:</strong> ${c.codigo_car.substring(0, 20)}...</small><br>` : ''}
+                        <small><strong>MunicÃ­pio:</strong> ${c.municipio || 'N/A'}</small><br>
+                        <small><strong>Ãrea:</strong> ${area}</small><br>
+                        <small><strong>DistÃ¢ncia:</strong> ${parseFloat(c.distancia_m || 0).toFixed(1)}m</small><br>
+                        ${isSIGEF && parseFloat(c.comprimento_contato_m || 0) > 0 ? `<small><strong>Comprimento Contato:</strong> ${parseFloat(c.comprimento_contato_m).toFixed(1)}m</small><br>` : ''}
+                        ${c.azimute || c.azimute_graus ? `<small><strong>Azimute:</strong> ${azimute}</small><br>` : ''}
+                        ${isSIGEF && c.codigo_parcela ? `<small><strong>CÃ³digo SIGEF:</strong> ${c.codigo_parcela.substring(0, 13)}...</small>` : ''}
+                    </div>
+                `;
+            });
+
+            if (confrontantes.total_confrontantes > 10) {
+                html += `<p><small>+ ${confrontantes.total_confrontantes - 10} confrontantes nÃ£o exibidos</small></p>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function carregarNoMapa(propriedadeId, resultado) {
+            try {
+                console.log('ðŸ—ºï¸ Carregando geometrias no mapa...');
+
+                // Limpar camadas
+                propriedadeLayer.clearLayers();
+                sigefLayer.clearLayers();
+                conflitosLayer.clearLayers();
+
+                // Carregar propriedade local
+                const propResponse = await fetch(`${API_BASE}/propriedades/${propriedadeId}`);
+                const propData = await propResponse.json();
+                const propriedade = propData.data || propData; // Suportar ambos os formatos
+
+                let propPolygon;
+                if (propriedade.geojson) {
+                    const geojson = JSON.parse(propriedade.geojson);
+
+                    propPolygon = L.geoJSON(geojson, {
+                        style: {
+                            color: '#007bff',      // Azul para propriedade principal
+                            weight: 4,
+                            fillColor: '#007bff',
+                            fillOpacity: 0.15
+                        }
+                    }).addTo(propriedadeLayer);
+
+                    // Calcular perÃ­metro da propriedade
+                    let perimetro = 0;
+                    if (geojson.type === 'Polygon' && geojson.coordinates && geojson.coordinates[0]) {
+                        const coords = geojson.coordinates[0];
+                        for (let i = 0; i < coords.length - 1; i++) {
+                            const lat1 = coords[i][1];
+                            const lng1 = coords[i][0];
+                            const lat2 = coords[i + 1][1];
+                            const lng2 = coords[i + 1][0];
+                            perimetro += calcularDistanciaHaversine(lat1, lng1, lat2, lng2);
+                        }
+                    }
+
+                    const areaHa = (propriedade.area_m2 || propriedade.area_calculada || 0) / 10000;
+
+                    propPolygon.bindPopup(`
+                        <div style="min-width: 250px;">
+                            <strong style="font-size: 14px; color: #007bff;">ðŸ  PROPRIEDADE ANALISADA</strong><br>
+                            <hr style="margin: 8px 0;">
+                            <strong>Nome:</strong> ${propriedade.nome_propriedade}<br>
+                            <strong>MatrÃ­cula:</strong> ${propriedade.matricula || 'N/A'}<br>
+                            <strong>MunicÃ­pio:</strong> ${propriedade.municipio}<br>
+                            <strong>Ãrea:</strong> ${areaHa.toFixed(4)} ha<br>
+                            <strong>PerÃ­metro:</strong> ${perimetro.toFixed(2)} m
+                        </div>
+                    `);
+                }
+
+                // Carregar ÃREAS DE SOBREPOSIÃ‡ÃƒO (apenas a geometria da interseÃ§Ã£o)
+                if (resultado.sobreposicoes?.sobreposicoes && resultado.sobreposicoes.sobreposicoes.length > 0) {
+                    console.log(`âš ï¸  Carregando ${resultado.sobreposicoes.sobreposicoes.length} sobreposiÃ§Ã£o(Ãµes)...`);
+                    for (const s of resultado.sobreposicoes.sobreposicoes) {
+                        // Renderizar apenas a geometria da interseÃ§Ã£o (Ã¡rea sobreposta)
+                        renderizarSobreposicao(s);
+                    }
+                }
+
+                // Carregar confrontantes com dados adicionais
+                if (resultado.confrontantes?.confrontantes && resultado.confrontantes.confrontantes.length > 0) {
+                    console.log(`ðŸ‘¥ Carregando ${resultado.confrontantes.confrontantes.length} confrontante(s)...`);
+
+                    // Separar confrontantes SIGEF e CAR
+                    const confrontantesSIGEF = resultado.confrontantes.confrontantes.filter(c => !c.fonte || c.fonte === 'SIGEF');
+                    const confrontantesCAR = resultado.confrontantes.confrontantes.filter(c => c.fonte === 'CAR');
+
+                    console.log(`   ðŸ“Š SIGEF: ${confrontantesSIGEF.length} | CAR: ${confrontantesCAR.length}`);
+
+                    // Carregar confrontantes SIGEF (limite 20)
+                    for (const c of confrontantesSIGEF.slice(0, 20)) {
+                        await carregarParcelaSIGEF(c.parcela_sigef_id, 'confrontante', {
+                            distancia_m: c.distancia_m,
+                            tipo_contato: c.tipo_contato,
+                            azimute: c.azimute,
+                            comprimento_contato_m: c.comprimento_contato_m
+                        });
+                    }
+
+                    // Carregar confrontantes CAR (limite 20)
+                    for (const c of confrontantesCAR.slice(0, 20)) {
+                        await carregarImovelCAR(c.codigo_car, {
+                            distancia_m: c.distancia_m,
+                            municipio: c.municipio,
+                            area_ha: c.area_ha,
+                            tipo_confrontacao: c.tipo_confrontacao
+                        });
+                    }
+                }
+
+                // âœ… CENTRALIZAR AUTOMATICAMENTE NO MAPA
+                if (propPolygon) {
+                    console.log('ðŸŽ¯ Centralizando mapa na propriedade...');
+                    map.fitBounds(propPolygon.getBounds(), {
+                        padding: [100, 100],  // Padding maior para visualizaÃ§Ã£o completa
+                        maxZoom: 15           // Zoom mÃ¡ximo para nÃ£o ficar muito prÃ³ximo
+                    });
+                }
+
+                console.log('âœ… Mapa carregado com sucesso!');
+
+            } catch (error) {
+                console.error('âŒ Erro ao carregar no mapa:', error);
+            }
+        }
+
+        /**
+         * Renderiza a Ã¡rea de sobreposiÃ§Ã£o (apenas a geometria da interseÃ§Ã£o)
+         * @param {Object} sobreposicao - Dados da sobreposiÃ§Ã£o com geometria_intersecao
+         */
+        function renderizarSobreposicao(sobreposicao) {
+            try {
+                // Parse da geometria da interseÃ§Ã£o (apenas Ã¡rea sobreposta)
+                const geojson = typeof sobreposicao.geometria_intersecao === 'string'
+                    ? JSON.parse(sobreposicao.geometria_intersecao)
+                    : sobreposicao.geometria_intersecao;
+
+                // Estilo VERMELHO destacado para Ã¡rea sobreposta
+                const polygon = L.geoJSON(geojson, {
+                    style: {
+                        color: '#FF0000',        // Vermelho borda
+                        weight: 4,               // Borda grossa
+                        fillColor: '#FF0000',    // Vermelho preenchimento
+                        fillOpacity: 0.5,        // Opacidade alta para destaque
+                        dashArray: '10, 5'       // Tracejado para indicar conflito
+                    }
+                }).addTo(conflitosLayer);
+
+                // Calcular perÃ­metro da Ã¡rea sobreposta
+                let perimetro = 0;
+                if (geojson.type === 'Polygon' && geojson.coordinates && geojson.coordinates[0]) {
+                    const coords = geojson.coordinates[0];
+                    for (let i = 0; i < coords.length - 1; i++) {
+                        const lat1 = coords[i][1];
+                        const lng1 = coords[i][0];
+                        const lat2 = coords[i + 1][1];
+                        const lng2 = coords[i + 1][0];
+                        perimetro += calcularDistanciaHaversine(lat1, lng1, lat2, lng2);
+                    }
+                }
+
+                // Popup detalhado da sobreposiÃ§Ã£o
+                const areaHa = (parseFloat(sobreposicao.area_sobreposicao_m2) / 10000).toFixed(4);
+                const areaM2 = parseFloat(sobreposicao.area_sobreposicao_m2).toFixed(2);
+                const areaParcela = parseFloat(sobreposicao.area_parcela_ha || 0).toFixed(2);
+
+                const popupContent = `
+                    <div style="min-width: 280px;">
+                        <strong style="font-size: 14px; color: #FF0000;">âš ï¸ ÃREA SOBREPOSTA</strong><br>
+                        <hr style="margin: 8px 0;">
+                        <strong>ðŸ“ Medidas da SobreposiÃ§Ã£o:</strong><br>
+                        <strong>Ãrea Sobreposta:</strong> ${areaHa} ha (${areaM2} mÂ²)<br>
+                        <strong>PerÃ­metro:</strong> ${perimetro.toFixed(2)} m<br>
+                        <strong>Percentual da Prop.:</strong> ${parseFloat(sobreposicao.percentual_propriedade || 0).toFixed(1)}%<br>
+                        <strong>Percentual SIGEF:</strong> ${parseFloat(sobreposicao.percentual_parcela || 0).toFixed(1)}%<br>
+                        <strong>Tipo:</strong> ${sobreposicao.tipo_sobreposicao || 'N/A'}<br>
+                        <hr style="margin: 8px 0;">
+                        <strong>ðŸ“‹ Dados da Parcela SIGEF:</strong><br>
+                        <strong>ProprietÃ¡rio:</strong> ${sobreposicao.proprietario_sigef || 'N/A'}<br>
+                        <strong>MunicÃ­pio:</strong> ${sobreposicao.municipio_sigef || 'N/A'}<br>
+                        <strong>Ãrea Total SIGEF:</strong> ${areaParcela} ha<br>
+                        <strong>MatrÃ­cula:</strong> ${sobreposicao.matricula_sigef || 'N/A'}<br>
+                        <strong>SituaÃ§Ã£o:</strong> ${sobreposicao.situacao_parcela || 'N/A'}<br>
+                        <strong>CertificaÃ§Ã£o:</strong> ${sobreposicao.data_certificacao || 'N/A'}<br>
+                        <strong>CÃ³digo SIGEF:</strong> <small>${sobreposicao.codigo_parcela || 'N/A'}</small>
+                    </div>
+                `;
+
+                polygon.bindPopup(popupContent);
+
+            } catch (error) {
+                console.error('Erro ao renderizar sobreposiÃ§Ã£o:', error);
+            }
+        }
+
+        async function carregarParcelaSIGEF(parcelaId, tipo, dadosAdicionais = {}) {
+            try {
+                const response = await fetch(`${API_BASE}/sigef/parcelas/${parcelaId}`);
+                const parcela = await response.json();
+
+                if (parcela.geometry) {
+                    const geojson = typeof parcela.geometry === 'string'
+                        ? JSON.parse(parcela.geometry)
+                        : parcela.geometry;
+
+                    // Cor DOURADA para confrontantes SIGEF
+                    const cor = '#FFD700';
+                    const fillOpacity = 0.2;
+                    const weight = 3;
+
+                    const polygon = L.geoJSON(geojson, {
+                        style: {
+                            color: cor,
+                            weight: weight,
+                            fillColor: cor,
+                            fillOpacity: fillOpacity
+                        }
+                    }).addTo(sigefLayer);
+
+                    // Calcular perÃ­metro da geometria
+                    let perimetro = 0;
+                    if (geojson.type === 'Polygon' && geojson.coordinates && geojson.coordinates[0]) {
+                        const coords = geojson.coordinates[0];
+                        for (let i = 0; i < coords.length - 1; i++) {
+                            const lat1 = coords[i][1];
+                            const lng1 = coords[i][0];
+                            const lat2 = coords[i + 1][1];
+                            const lng2 = coords[i + 1][0];
+                            perimetro += calcularDistanciaHaversine(lat1, lng1, lat2, lng2);
+                        }
+                    }
+
+                    // Popup de confrontante SIGEF
+                    const area = parseFloat(parcela.area_hectares || 0).toFixed(2);
+                    const perimetroFormatado = perimetro > 0 ? perimetro.toFixed(2) : 'N/A';
+
+                    let popupContent = `
+                        <div style="min-width: 250px;">
+                            <strong style="font-size: 14px; color: #FFD700;">ðŸ‘¥ CONFRONTANTE SIGEF</strong><br>
+                            <hr style="margin: 8px 0;">
+                            <strong>ProprietÃ¡rio:</strong> ${parcela.proprietario || 'N/A'}<br>
+                            <strong>MunicÃ­pio:</strong> ${parcela.municipio || 'N/A'}<br>
+                            <strong>Ãrea:</strong> ${area} ha<br>
+                            <strong>PerÃ­metro:</strong> ${perimetroFormatado} m<br>
+                            <strong>MatrÃ­cula:</strong> ${parcela.matricula || 'N/A'}<br>
+                    `;
+
+                    // Adicionar dados especÃ­ficos de confrontante
+                    if (dadosAdicionais) {
+                        if (dadosAdicionais.distancia_m !== undefined) {
+                            popupContent += `<hr style="margin: 8px 0;">
+                                <strong>DistÃ¢ncia:</strong> ${parseFloat(dadosAdicionais.distancia_m).toFixed(2)} m<br>
+                                <strong>Tipo Contato:</strong> ${dadosAdicionais.tipo_contato === 'limite_comum' ? 'ðŸ”— Limite Comum' : 'ðŸ“ PrÃ³ximo'}<br>
+                            `;
+                            if (dadosAdicionais.azimute) {
+                                popupContent += `<strong>Azimute:</strong> ${parseFloat(dadosAdicionais.azimute).toFixed(1)}Â°<br>`;
+                            }
+                        }
+                    }
+
+                    popupContent += `<strong>CÃ³digo SIGEF:</strong> <small>${parcela.codigo_parcela || 'N/A'}</small>
+                        </div>
+                    `;
+
+                    polygon.bindPopup(popupContent);
+                }
+
+            } catch (error) {
+                console.error(`Erro ao carregar parcela SIGEF ${parcelaId}:`, error);
+            }
+        }
+
+        /**
+         * Carrega imÃ³vel CAR no mapa (confrontante)
+         */
+        async function carregarImovelCAR(codigoCAR, dadosAdicionais = {}) {
+            try {
+                const response = await fetch(`${API_BASE}/car/geometry/${encodeURIComponent(codigoCAR)}`);
+                const imovel = await response.json();
+
+                if (!imovel.success) {
+                    console.warn(`CAR nÃ£o encontrado: ${codigoCAR}`);
+                    return;
+                }
+
+                if (imovel.geometry) {
+                    const geojson = typeof imovel.geometry === 'string'
+                        ? JSON.parse(imovel.geometry)
+                        : imovel.geometry;
+
+                    // Cor VERDE para confrontantes CAR
+                    const cor = '#00FF00';
+                    const fillOpacity = 0.2;
+                    const weight = 3;
+
+                    const polygon = L.geoJSON(geojson, {
+                        style: {
+                            color: cor,
+                            weight: weight,
+                            fillColor: cor,
+                            fillOpacity: fillOpacity
+                        }
+                    }).addTo(sigefLayer); // Adicionar Ã  mesma camada de confrontantes
+
+                    // Calcular perÃ­metro da geometria
+                    let perimetro = 0;
+                    if (geojson.type === 'Polygon' && geojson.coordinates && geojson.coordinates[0]) {
+                        const coords = geojson.coordinates[0];
+                        for (let i = 0; i < coords.length - 1; i++) {
+                            const lat1 = coords[i][1];
+                            const lng1 = coords[i][0];
+                            const lat2 = coords[i + 1][1];
+                            const lng2 = coords[i + 1][0];
+                            perimetro += calcularDistanciaHaversine(lat1, lng1, lat2, lng2);
+                        }
+                    }
+
+                    // Popup de confrontante CAR
+                    const area = parseFloat(imovel.area_ha || dadosAdicionais.area_ha || 0).toFixed(2);
+                    const perimetroFormatado = perimetro > 0 ? perimetro.toFixed(2) : 'N/A';
+
+                    let popupContent = `
+                        <div style="min-width: 250px;">
+                            <strong style="font-size: 14px; color: #00FF00;">ðŸŒ¾ CONFRONTANTE CAR</strong><br>
+                            <hr style="margin: 8px 0;">
+                            <strong>CÃ³digo CAR:</strong> ${imovel.codigo_car}<br>
+                            <strong>MunicÃ­pio:</strong> ${imovel.municipio || dadosAdicionais.municipio || 'N/A'}<br>
+                            <strong>Ãrea:</strong> ${area} ha<br>
+                            <strong>PerÃ­metro:</strong> ${perimetroFormatado} m<br>
+                            <strong>SituaÃ§Ã£o:</strong> ${imovel.situacao || 'Ativo'}<br>
+                    `;
+
+                    // Adicionar dados especÃ­ficos de confrontante
+                    if (dadosAdicionais) {
+                        if (dadosAdicionais.distancia_m !== undefined) {
+                            popupContent += `<hr style="margin: 8px 0;">
+                                <strong>DistÃ¢ncia:</strong> ${parseFloat(dadosAdicionais.distancia_m).toFixed(2)} m<br>
+                                <strong>Tipo:</strong> ${dadosAdicionais.tipo_confrontacao || 'PrÃ³ximo'}<br>
+                            `;
+                        }
+                    }
+
+                    popupContent += `</div>`;
+
+                    polygon.bindPopup(popupContent);
+                }
+
+            } catch (error) {
+                console.error(`Erro ao carregar imÃ³vel CAR ${codigoCAR}:`, error);
+            }
+        }
+
+        // FunÃ§Ã£o auxiliar para calcular distÃ¢ncia Haversine
+        function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // Raio da Terra em metros
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // =====================================================
+        // FUNÃ‡Ã•ES DE GERAÃ‡ÃƒO DE RELATÃ“RIOS
+        // =====================================================
+
+        function obterPropriedadeIdAtual() {
+            const propriedadeId = document.getElementById('propriedadeSelect').value;
+            if (!propriedadeId) {
+                alert('Selecione uma propriedade primeiro!');
+                return null;
+            }
+            return propriedadeId;
+        }
+
+        function mostrarLoadingOverlay(mensagem) {
+            const overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+            `;
+            overlay.innerHTML = `
+                <div style="text-align: center;">
+                    <div>â³ ${mensagem}</div>
+                    <div style="margin-top: 10px; font-size: 14px; font-weight: normal;">Aguarde...</div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function removerLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        function mostrarToast(mensagem, tipo = 'success') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                padding: 15px 25px;
+                background: ${tipo === 'success' ? '#28a745' : '#dc3545'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: 600;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = mensagem;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function downloadRelatorio(url, nomeArquivo, mensagemLoading) {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            mostrarLoadingOverlay(mensagemLoading);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = nomeArquivo.replace('{id}', propriedadeId);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                removerLoadingOverlay();
+                mostrarToast('âœ… RelatÃ³rio gerado com sucesso!', 'success');
+
+            } catch (error) {
+                console.error('Erro ao gerar relatÃ³rio:', error);
+                removerLoadingOverlay();
+                mostrarToast('âŒ Erro ao gerar relatÃ³rio: ' + error.message, 'error');
+            }
+        }
+
+        // FunÃ§Ãµes especÃ­ficas para cada tipo de relatÃ³rio
+
+        function gerarRelatorioPDF() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/analise-completa/${propriedadeId}`,
+                `analise_completa_{id}.pdf`,
+                'Gerando RelatÃ³rio de AnÃ¡lise Completa...'
+            );
+        }
+
+        function gerarRelatorioConfrontantesPDF() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/confrontantes/${propriedadeId}`,
+                `confrontantes_{id}.pdf`,
+                'Gerando RelatÃ³rio de Confrontantes (PDF)...'
+            );
+        }
+
+        function gerarRelatorioViabilidadePDF() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/viabilidade/${propriedadeId}`,
+                `viabilidade_{id}.pdf`,
+                'Gerando RelatÃ³rio de Viabilidade...'
+            );
+        }
+
+        function gerarRelatorioConfrontantesExcel() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/confrontantes-excel/${propriedadeId}`,
+                `confrontantes_{id}.xlsx`,
+                'Exportando Confrontantes para Excel...'
+            );
+        }
+
+        function gerarRelatorioConfrontantesCSV() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/confrontantes-csv/${propriedadeId}`,
+                `confrontantes_{id}.csv`,
+                'Exportando Confrontantes para CSV...'
+            );
+        }
+
+        function gerarRelatorioSobreposicoesExcel() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadRelatorio(
+                `${API_BASE}/relatorios/sobreposicoes-excel/${propriedadeId}`,
+                `sobreposicoes_{id}.xlsx`,
+                'Exportando SobreposiÃ§Ãµes para Excel...'
+            );
+        }
+
+        // =====================================================
+        // FUNÃ‡Ã•ES DE EXPORTAÃ‡ÃƒO GEOREFERENCIADA
+        // =====================================================
+
+        async function downloadGeoExport(url, nomeArquivo, mensagemLoading) {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            mostrarLoadingOverlay(mensagemLoading);
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Erro ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = nomeArquivo.replace('{id}', propriedadeId);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                removerLoadingOverlay();
+                mostrarToast('âœ… Arquivo exportado com sucesso!', 'success');
+
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                removerLoadingOverlay();
+                mostrarToast('âŒ ' + error.message, 'error');
+            }
+        }
+
+        // Confrontantes - GeoJSON
+        function exportarConfrontantesGeoJSON() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/confrontantes/${propriedadeId}/geojson`,
+                `confrontantes_{id}.geojson`,
+                'Exportando Confrontantes (GeoJSON)...'
+            );
+        }
+
+        // Confrontantes - KML
+        function exportarConfrontantesKML() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/confrontantes/${propriedadeId}/kml`,
+                `confrontantes_{id}.kml`,
+                'Exportando Confrontantes (KML)...'
+            );
+        }
+
+        // Confrontantes - Shapefile
+        function exportarConfrontantesShapefile() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/confrontantes/${propriedadeId}/shapefile`,
+                `confrontantes_{id}.zip`,
+                'Exportando Confrontantes (Shapefile)...'
+            );
+        }
+
+        // Confrontantes - DXF
+        function exportarConfrontantesDXF() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/confrontantes/${propriedadeId}/dxf`,
+                `confrontantes_{id}.dxf`,
+                'Exportando Confrontantes (DXF)...'
+            );
+        }
+
+        // SobreposiÃ§Ãµes - GeoJSON
+        function exportarSobreposicoesGeoJSON() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/sobreposicoes/${propriedadeId}/geojson`,
+                `sobreposicoes_{id}.geojson`,
+                'Exportando SobreposiÃ§Ãµes (GeoJSON)...'
+            );
+        }
+
+        // SobreposiÃ§Ãµes - KML
+        function exportarSobreposicoesKML() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/sobreposicoes/${propriedadeId}/kml`,
+                `sobreposicoes_{id}.kml`,
+                'Exportando SobreposiÃ§Ãµes (KML)...'
+            );
+        }
+
+        // SobreposiÃ§Ãµes - Shapefile
+        function exportarSobreposicoesShapefile() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/sobreposicoes/${propriedadeId}/shapefile`,
+                `sobreposicoes_{id}.zip`,
+                'Exportando SobreposiÃ§Ãµes (Shapefile)...'
+            );
+        }
+
+        // SobreposiÃ§Ãµes - DXF
+        function exportarSobreposicoesDXF() {
+            const propriedadeId = obterPropriedadeIdAtual();
+            if (!propriedadeId) return;
+
+            downloadGeoExport(
+                `${API_BASE}/export-geo/sobreposicoes/${propriedadeId}/dxf`,
+                `sobreposicoes_{id}.dxf`,
+                'Exportando SobreposiÃ§Ãµes (DXF)...'
+            );
+        }
+
+        // =====================================================
+        // IMPORTAÃ‡ÃƒO RÃPIDA DE PROPRIEDADES
+        // =====================================================
+
+        let quickSelectedFile = null;
+
+        // Setup da Ã¡rea de upload rÃ¡pido
+        const quickUploadArea = document.getElementById('quickUploadArea');
+        const quickFileInput = document.getElementById('quickFileInput');
+        const quickFileInfo = document.getElementById('quickFileInfo');
+        const quickFileName = document.getElementById('quickFileName');
+        const quickNomePropriedade = document.getElementById('quickNomePropriedade');
+        const quickImportBtn = document.getElementById('quickImportBtn');
+
+        // Click na Ã¡rea de upload
+        quickUploadArea.addEventListener('click', () => {
+            quickFileInput.click();
+        });
+
+        // Drag and drop
+        quickUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            quickUploadArea.style.borderColor = '#0056b3';
+            quickUploadArea.style.background = '#e8f4ff';
+        });
+
+        quickUploadArea.addEventListener('dragleave', () => {
+            quickUploadArea.style.borderColor = '#007bff';
+            quickUploadArea.style.background = 'white';
+        });
+
+        quickUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            quickUploadArea.style.borderColor = '#007bff';
+            quickUploadArea.style.background = 'white';
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleQuickFileSelect(files[0]);
+            }
+        });
+
+        // SeleÃ§Ã£o de arquivo
+        quickFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleQuickFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleQuickFileSelect(file) {
+            quickSelectedFile = file;
+            quickFileName.textContent = file.name;
+            quickFileInfo.style.display = 'block';
+            quickImportBtn.disabled = false;
+
+            // Sugerir nome baseado no arquivo
+            if (!quickNomePropriedade.value) {
+                const nomeSugerido = file.name.replace(/\.(kml|kmz|shp|zip|dxf|geojson|json)$/i, '');
+                quickNomePropriedade.value = nomeSugerido;
+            }
+
+            console.log('âœ… Arquivo selecionado:', file.name);
+        }
+
+        function clearQuickFile() {
+            quickSelectedFile = null;
+            quickFileInput.value = '';
+            quickFileInfo.style.display = 'none';
+            quickImportBtn.disabled = true;
+            console.log('ðŸ—‘ï¸ Arquivo removido');
+        }
+
+        async function importarPropriedadeRapido() {
+            if (!quickSelectedFile) {
+                alert('Selecione um arquivo primeiro!');
+                return;
+            }
+
+            const nomePropriedade = quickNomePropriedade.value.trim();
+            if (!nomePropriedade) {
+                alert('Digite um nome para a propriedade!');
+                quickNomePropriedade.focus();
+                return;
+            }
+
+            // Criar FormData
+            const formData = new FormData();
+            formData.append('arquivo', quickSelectedFile);
+            formData.append('nome_propriedade', nomePropriedade);
+            formData.append('cliente_id', 1);
+            formData.append('tipo', 'RURAL');
+
+            // Mostrar loading
+            mostrarLoadingOverlay('Importando propriedade...');
+            quickImportBtn.disabled = true;
+
+            try {
+                console.log('ðŸ“¤ Enviando arquivo para importaÃ§Ã£o:', quickSelectedFile.name);
+
+                const response = await fetch(`${API_BASE}/upload-geo/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                removerLoadingOverlay();
+
+                if (data.success) {
+                    console.log('âœ… Propriedade importada com sucesso:', data.propriedade);
+
+                    mostrarToast(`âœ… ${nomePropriedade} importada com sucesso!`, 'success');
+
+                    // Limpar formulÃ¡rio
+                    clearQuickFile();
+                    quickNomePropriedade.value = '';
+
+                    // Recarregar lista de propriedades
+                    await carregarPropriedades();
+
+                    // Selecionar a nova propriedade automaticamente
+                    document.getElementById('propriedadeSelect').value = data.propriedade.id;
+
+                    // Executar anÃ¡lise automaticamente
+                    setTimeout(() => {
+                        executarAnalise();
+                    }, 500);
+
+                } else {
+                    console.error('âŒ Erro na importaÃ§Ã£o:', data.message);
+                    mostrarToast('âŒ Erro: ' + (data.message || 'Falha ao importar'), 'error');
+                    quickImportBtn.disabled = false;
+                }
+
+            } catch (error) {
+                console.error('âŒ Erro ao importar propriedade:', error);
+                removerLoadingOverlay();
+                mostrarToast('âŒ Erro ao importar: ' + error.message, 'error');
+                quickImportBtn.disabled = false;
+            }
+        }
+
+        // =====================================================
+        // CAMADAS CAR - DOWNLOAD E VISUALIZAÃ‡ÃƒO
+        // =====================================================
+
+        async function baixarCamadasCAR() {
+            const propriedadeId = document.getElementById('propriedadeSelect').value;
+
+            if (!propriedadeId) {
+                mostrarToast('âŒ Selecione uma propriedade primeiro', 'error');
+                return;
+            }
+
+            const btnBaixarCAR = document.getElementById('btnBaixarCAR');
+            const statusDiv = document.getElementById('carDownloadStatus');
+
+            try {
+                btnBaixarCAR.disabled = true;
+                btnBaixarCAR.textContent = 'â³ Baixando via GeoPR...';
+                statusDiv.style.display = 'block';
+                statusDiv.textContent = 'â³ Conectando ao GeoPR (IAT-PR)...';
+
+                console.log(`ðŸŒ¾ Iniciando download GeoPR para propriedade ${propriedadeId}`);
+
+                // MUDANÃ‡A: Usar novo endpoint que baixa direto do GeoPR
+                const response = await fetch(`${API_BASE}/car/baixar-geopr/${propriedadeId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log('âœ… Download concluÃ­do:', data);
+
+                    if (data.imoveis_baixados > 0) {
+                        mostrarToast(
+                            `âœ… ${data.imoveis_baixados} imÃ³veis CAR baixados de ${data.confrontantes_processados} confrontantes!`,
+                            'success'
+                        );
+
+                        // Mostrar controles de camadas
+                        document.getElementById('controlesCAR').style.display = 'block';
+
+                        // Carregar e exibir no mapa
+                        await carregarCamadasNoMapa(propriedadeId);
+
+                        statusDiv.style.display = 'none';
+                        btnBaixarCAR.textContent = 'âœ… Camadas Baixadas';
+                    } else {
+                        mostrarToast('âš ï¸ Nenhum imÃ³vel CAR encontrado para os confrontantes', 'warning');
+                        btnBaixarCAR.textContent = 'ðŸ“¥ Baixar Todas as Camadas';
+                        btnBaixarCAR.disabled = false;
+                        statusDiv.style.display = 'none';
+                    }
+
+                } else {
+                    throw new Error(data.message || 'Erro ao baixar camadas');
+                }
+
+            } catch (error) {
+                console.error('âŒ Erro ao baixar camadas CAR:', error);
+                mostrarToast('âŒ Erro: ' + error.message, 'error');
+                btnBaixarCAR.disabled = false;
+                btnBaixarCAR.textContent = 'ðŸ“¥ Baixar Todas as Camadas';
+                statusDiv.style.display = 'none';
+            }
+        }
+
+        async function carregarCamadasNoMapa(propriedadeId) {
+            try {
+                console.log('ðŸ—ºï¸ Carregando camadas CAR no mapa...');
+
+                const response = await fetch(`${API_BASE}/car/camadas/${propriedadeId}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Erro ao carregar camadas');
+                }
+
+                console.log('âœ… Camadas carregadas:', data.totais_por_tipo);
+
+                // Limpar camadas antigas
+                Object.values(layerGroupsCAR).forEach(layer => layer.clearLayers());
+
+                // Adicionar Ãreas de ImÃ³veis CAR (Confrontantes)
+                let totalImoveis = 0;
+
+                // Buscar todas as camadas e somar AREA_IMOVEL + outras
+                Object.entries(data.camadas).forEach(([tipo, featureCollection]) => {
+                    if (featureCollection.features && featureCollection.features.length > 0) {
+                        featureCollection.features.forEach(feature => {
+                            if (feature.properties.tipo_camada === 'AREA_IMOVEL') {
+                                // Adicionar imÃ³vel com estilo especÃ­fico
+                                L.geoJSON(feature, {
+                                    style: {
+                                        color: '#FFD700', // Dourado para imÃ³veis CAR
+                                        weight: 2,
+                                        fillOpacity: 0.2,
+                                        dashArray: '5, 5'
+                                    },
+                                    onEachFeature: (f, layer) => {
+                                        layer.bindPopup(`
+                                            <strong>ðŸŒ¾ ImÃ³vel CAR</strong><br>
+                                            <strong>CÃ³digo CAR:</strong> ${f.properties.codigo_car}<br>
+                                            <strong>Nome:</strong> ${f.properties.nome_camada || 'N/A'}<br>
+                                            <strong>Ãrea:</strong> ${f.properties.area_ha ? f.properties.area_ha.toFixed(2) + ' ha' : 'N/A'}<br>
+                                            <strong>Fonte:</strong> ${f.properties.fonte || 'GeoPR'}
+                                        `);
+                                    }
+                                }).addTo(layerGroupsCAR.uso_solo); // Usar grupo uso_solo para imÃ³veis
+
+                                totalImoveis++;
+                            }
+                        });
+                    }
+                });
+
+                // Atualizar contador
+                if (totalImoveis > 0) {
+                    document.querySelector('#layer-uso-solo .layer-count').textContent = `(${totalImoveis})`;
+
+                    // Ativar checkbox automaticamente
+                    document.getElementById('layer-uso-solo').checked = true;
+                    map.addLayer(layerGroupsCAR.uso_solo);
+                }
+
+                console.log(`âœ… ${totalImoveis} imÃ³veis CAR adicionados ao mapa`);
+
+                // Adicionar Uso do Solo
+                if (data.camadas.uso_solo.features.length > 0) {
+                    L.geoJSON(data.camadas.uso_solo, {
+                        style: {
+                            color: coresCAR.uso_solo,
+                            weight: 2,
+                            fillOpacity: 0.3
+                        },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindPopup(`
+                                <strong>ðŸŸ¤ Uso do Solo</strong><br>
+                                <strong>CAR:</strong> ${feature.properties.codigo_car}<br>
+                                <strong>Nome:</strong> ${feature.properties.nome_camada || 'N/A'}<br>
+                                <strong>Ãrea:</strong> ${feature.properties.area_ha.toFixed(2)} ha
+                            `);
+                        }
+                    }).addTo(layerGroupsCAR.uso_solo);
+                }
+
+                // Adicionar Hidrografia
+                if (data.camadas.hidrografia.features.length > 0) {
+                    L.geoJSON(data.camadas.hidrografia, {
+                        style: {
+                            color: coresCAR.hidrografia,
+                            weight: 3,
+                            fillOpacity: 0.5
+                        },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindPopup(`
+                                <strong>ðŸ”µ Hidrografia</strong><br>
+                                <strong>CAR:</strong> ${feature.properties.codigo_car}<br>
+                                <strong>Nome:</strong> ${feature.properties.nome_camada || 'N/A'}<br>
+                                <strong>Ãrea:</strong> ${feature.properties.area_ha.toFixed(2)} ha
+                            `);
+                        }
+                    }).addTo(layerGroupsCAR.hidrografia);
+                }
+
+                // Adicionar Reserva Legal
+                if (data.camadas.reserva_legal.features.length > 0) {
+                    L.geoJSON(data.camadas.reserva_legal, {
+                        style: {
+                            color: coresCAR.reserva_legal,
+                            weight: 2,
+                            fillOpacity: 0.4
+                        },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindPopup(`
+                                <strong>ðŸŸ¢ Reserva Legal</strong><br>
+                                <strong>CAR:</strong> ${feature.properties.codigo_car}<br>
+                                <strong>Nome:</strong> ${feature.properties.nome_camada || 'N/A'}<br>
+                                <strong>Ãrea:</strong> ${feature.properties.area_ha.toFixed(2)} ha
+                            `);
+                        }
+                    }).addTo(layerGroupsCAR.reserva_legal);
+                }
+
+                // Adicionar VegetaÃ§Ã£o Nativa
+                if (data.camadas.vegetacao_nativa.features.length > 0) {
+                    L.geoJSON(data.camadas.vegetacao_nativa, {
+                        style: {
+                            color: coresCAR.vegetacao_nativa,
+                            weight: 2,
+                            fillOpacity: 0.3
+                        },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindPopup(`
+                                <strong>ðŸŒ³ VegetaÃ§Ã£o Nativa</strong><br>
+                                <strong>CAR:</strong> ${feature.properties.codigo_car}<br>
+                                <strong>Nome:</strong> ${feature.properties.nome_camada || 'N/A'}<br>
+                                <strong>Ãrea:</strong> ${feature.properties.area_ha.toFixed(2)} ha
+                            `);
+                        }
+                    }).addTo(layerGroupsCAR.vegetacao_nativa);
+                }
+
+                // Adicionar APP
+                if (data.camadas.app.features.length > 0) {
+                    L.geoJSON(data.camadas.app, {
+                        style: {
+                            color: coresCAR.app,
+                            weight: 2,
+                            fillOpacity: 0.4
+                        },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindPopup(`
+                                <strong>ðŸ›¡ï¸ APP</strong><br>
+                                <strong>CAR:</strong> ${feature.properties.codigo_car}<br>
+                                <strong>Nome:</strong> ${feature.properties.nome_camada || 'N/A'}<br>
+                                <strong>Ãrea:</strong> ${feature.properties.area_ha.toFixed(2)} ha
+                            `);
+                        }
+                    }).addTo(layerGroupsCAR.app);
+                }
+
+                console.log('âœ… Todas as camadas CAR adicionadas ao mapa');
+
+            } catch (error) {
+                console.error('âŒ Erro ao carregar camadas no mapa:', error);
+                mostrarToast('âŒ Erro ao carregar camadas: ' + error.message, 'error');
+            }
+        }
+
+        // Habilitar botÃ£o CAR quando propriedade for selecionada
+        document.getElementById('propriedadeSelect').addEventListener('change', function() {
+            const btnBaixarCAR = document.getElementById('btnBaixarCAR');
+            btnBaixarCAR.disabled = !this.value;
+        });
+
+        // InicializaÃ§Ã£o
+        initMap();
+        carregarPropriedades();
+
+        // Adicionar animaÃ§Ãµes CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
+
