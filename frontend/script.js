@@ -7,6 +7,12 @@ let supercluster = null;
 let marcosFeatures = [];
 let marcadoresLayer = null;
 
+// Variáveis de paginação
+let paginaAtual = 1;
+let limitePorPagina = 50; // Número de marcos por página
+let totalRegistros = 0;
+let totalPaginas = 0;
+
 // =========================================
 // DEFINIÇÃO EPSG:31982 - SIRGAS 2000 UTM Zone 22S
 // =========================================
@@ -125,17 +131,71 @@ async function carregarEstatisticas() {
     try {
         const response = await fetch(`${API_URL}/api/estatisticas`);
         const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('stat-total').textContent = data.data.total;
-            document.getElementById('stat-v').textContent = data.data.tipoV;
-            document.getElementById('stat-m').textContent = data.data.tipoM;
-            document.getElementById('stat-p').textContent = data.data.tipoP;
+
+        if (response.ok) {
+            // Atualizar os elementos de estatísticas no dashboard
+            if (document.getElementById('stat-marcos')) {
+                document.getElementById('stat-marcos').textContent = formatarNumeroMilhar(data.total_marcos);
+            }
+            if (document.getElementById('stat-levantados')) {
+                document.getElementById('stat-levantados').textContent = formatarNumeroMilhar(data.marcos_levantados);
+            }
+            if (document.getElementById('stat-propriedades')) {
+                // Vamos buscar as estatísticas de propriedades separadamente
+                await carregarEstatisticasPropriedades();
+            }
+            if (document.getElementById('stat-clientes')) {
+                // Vamos buscar as estatísticas de clientes separadamente
+                await carregarEstatisticasClientes();
+            }
+
+            // Atualizar os ícones Lucide após atualizar os dados
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        } else {
+            console.error('Erro na API de estatísticas:', data.error);
         }
     } catch (error) {
         console.error('Erro ao carregar estatísticas:', error);
         showToast('Erro ao carregar estatísticas', 'error');
     }
+}
+
+// Função para carregar estatísticas de propriedades
+async function carregarEstatisticasPropriedades() {
+    try {
+        const response = await fetch(`${API_URL}/api/propriedades?limite=1`);
+        const data = await response.json();
+
+        if (document.getElementById('stat-propriedades')) {
+            const total = data.total || 0;
+            document.getElementById('stat-propriedades').textContent = formatarNumeroMilhar(total);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas de propriedades:', error);
+    }
+}
+
+// Função para carregar estatísticas de clientes
+async function carregarEstatisticasClientes() {
+    try {
+        const response = await fetch(`${API_URL}/api/clientes`);
+        const data = await response.json();
+
+        if (document.getElementById('stat-clientes')) {
+            const total = data.total || 0;
+            document.getElementById('stat-clientes').textContent = formatarNumeroMilhar(total);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas de clientes:', error);
+    }
+}
+
+// Função auxiliar para formatar números com separador de milhar
+function formatarNumeroMilhar(numero) {
+    if (numero === null || numero === undefined) return '0';
+    return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 async function carregarMarcosRecentes() {
@@ -3831,6 +3891,11 @@ async function atualizarEstatisticas() {
             document.getElementById('stat-p').textContent = dataMarcos.por_tipo.P || 0;
         }
 
+        // Atualizar os ícones Lucide após atualizar os dados
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
         console.log('✅ Estatísticas atualizadas - Total:', totalMarcos, 'Levantados:', marcosLevantados);
     } catch (error) {
         console.error('❌ Erro ao atualizar estatísticas:', error);
@@ -4602,6 +4667,280 @@ async function carregarMarcosLista() {
                 </div>
             `;
         }
+    }
+}
+
+/**
+ * Função para carregar histórico de atividades
+ */
+async function carregarHistorico(pagina = 0) {
+    try {
+        console.log('Carregando histórico de atividades, página:', pagina);
+
+        const busca = document.getElementById('busca-historico')?.value || '';
+        const offset = pagina * 50; // 50 itens por página
+
+        let url = `${API_URL}/api/historico?limite=50&pagina=${pagina}`;
+        if (busca) url += `&busca=${encodeURIComponent(busca)}`;
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (response.ok && result.sucesso) {
+            renderizarHistorico(result.dados);
+            renderizarPaginacaoHistorico(result.total, pagina, result.limite);
+        } else {
+            console.error('Erro na API de histórico:', result.erro);
+            document.getElementById('lista-historico').innerHTML = `
+                <div class="mensagem mensagem-erro">
+                    ❌ Erro ao carregar histórico: ${result.erro || 'Erro desconhecido'}
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        document.getElementById('lista-historico').innerHTML = `
+            <div class="mensagem mensagem-erro">
+                ❌ Erro ao carregar histórico: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderizarHistorico(atividades) {
+    const container = document.getElementById('lista-historico');
+
+    if (!atividades || atividades.length === 0) {
+        container.innerHTML = `
+            <div class="mensagem mensagem-info">
+                ℹ️ Nenhuma atividade registrada no sistema.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = atividades.map(atividade => {
+        const data = new Date(atividade.data_registro).toLocaleString('pt-BR');
+        return `
+            <div class="item-card" style="border-left: 4px solid var(--cogep-green);">
+                <div class="item-header">
+                    <div>
+                        <h3 class="item-titulo">${atividade.descricao}</h3>
+                        <div style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-2);">
+                            <div><strong>Ação:</strong> ${atividade.acao}</div>
+                            <div><strong>Entidade:</strong> ${atividade.entidade_afetada}</div>
+                            ${atividade.registro_id ? `<div><strong>ID:</strong> ${atividade.registro_id}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="item-info">
+                    <div style="text-align: right; font-size: var(--text-sm); color: var(--text-tertiary);">
+                        <div><strong>Usuário:</strong> ${atividade.usuario || 'Sistema'}</div>
+                        <div><strong>Data:</strong> ${data}</div>
+                        ${atividade.ip_origem ? `<div><strong>IP:</strong> ${atividade.ip_origem}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderizarPaginacaoHistorico(total, paginaAtual, limite) {
+    const container = document.getElementById('paginacao-historico');
+    const totalPaginas = Math.ceil(total / limite);
+
+    if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `
+        <button ${paginaAtual === 0 ? 'disabled' : ''} onclick="carregarHistorico(${paginaAtual - 1})">
+            ← Anterior
+        </button>
+    `;
+
+    for (let i = 0; i < totalPaginas; i++) {
+        html += `
+            <button class="${i === paginaAtual ? 'page-active' : ''}"
+                    onclick="carregarHistorico(${i})">
+                ${i + 1}
+            </button>
+        `;
+    }
+
+    html += `
+        <button ${paginaAtual === totalPaginas - 1 ? 'disabled' : ''} onclick="carregarHistorico(${paginaAtual + 1})">
+            Próxima →
+        </button>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Função para carregar marcos com paginação
+async function carregarMarcosLista(pagina = 1) {
+    try {
+        console.log('📍 Carregando lista de marcos (paginação) - Página:', pagina);
+
+        const container = document.getElementById('marcos-grid');
+        if (!container) {
+            console.warn('⚠️ Container marcos-grid não encontrado');
+            return;
+        }
+
+        // Calcular offset com base na página
+        const offset = (pagina - 1) * limitePorPagina;
+
+        // Mostrar loading
+        container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 2rem;">Carregando marcos...</p>';
+
+        // Atualizar URL com parâmetros de paginação
+        const url = `${API_URL}/api/marcos?limite=${limitePorPagina}&offset=${offset}&levantados=true`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const marcos = result.data || [];
+        totalRegistros = result.total || 0;
+        totalPaginas = Math.ceil(totalRegistros / limitePorPagina);
+
+        // Atualizar página atual
+        paginaAtual = pagina;
+
+        console.log(`✅ ${marcos.length} marcos carregados para a lista (Página ${pagina} de ${totalPaginas})`);
+
+        // Renderizar cards
+        if (marcos.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                    <p style="color: var(--text-secondary);">Nenhum marco encontrado</p>
+                </div>
+            `;
+
+            // Esconder paginação se não houver resultados
+            const paginationContainer = document.getElementById('marcos-pagination');
+            if (paginationContainer) {
+                paginationContainer.style.display = 'none';
+            }
+
+            return;
+        }
+
+        container.innerHTML = marcos.map(marco => `
+            <div class="marco-card" style="
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                padding: var(--space-4);
+                cursor: pointer;
+                transition: all 0.2s;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
+                    <span style="font-weight: 600; color: var(--text-primary);">${marco.codigo || 'N/A'}</span>
+                    <span style="
+                        background: ${marco.validado ? 'var(--success-bg)' : 'var(--warning-bg)'};
+                        color: ${marco.validado ? 'var(--success)' : 'var(--warning)'};
+                        padding: var(--space-1) var(--space-2);
+                        border-radius: var(--radius);
+                        font-size: var(--text-xs);
+                        font-weight: 500;
+                    ">${marco.validado ? 'Levantado' : 'Pendente'}</span>
+                </div>
+                <div style="color: var(--text-secondary); font-size: var(--text-sm);">
+                    <div>${marco.localizacao || 'Localização não informada'}</div>
+                    <div style="margin-top: var(--space-1);">
+                        ${marco.municipio || 'N/A'} - ${marco.estado || 'N/A'}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // Atualizar informações de paginação
+        atualizarInfoPaginacao();
+
+        // Adicionar event listeners aos cards
+        container.querySelectorAll('.marco-card').forEach((card, index) => {
+            card.addEventListener('click', () => {
+                const marco = marcos[index];
+                if (marco.latitude && marco.longitude) {
+                    // Trocar para aba do mapa
+                    const mapaButton = document.querySelector('.tab-button[data-tab="mapa"]');
+                    if (mapaButton) mapaButton.click();
+
+                    // Centralizar no marco
+                    setTimeout(() => {
+                        if (window.map) {
+                            window.map.setView([marco.latitude, marco.longitude], 16);
+                        }
+                    }, 100);
+                }
+            });
+        });
+
+        // Mostrar controles de paginação
+        const paginationContainer = document.getElementById('marcos-pagination');
+        if (paginationContainer) {
+            paginationContainer.style.display = 'flex';
+        }
+
+        // Atualizar ícones Lucide após renderizar os cards
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar lista de marcos:', error);
+        const container = document.getElementById('marcos-grid');
+        if (container) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                    <p style="color: var(--danger);">Erro ao carregar marcos. Tente novamente.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Função para atualizar informações de paginação
+function atualizarInfoPaginacao() {
+    const currentPageEl = document.getElementById('current-page');
+    const totalPagesEl = document.getElementById('total-pages');
+    const totalRecordsEl = document.getElementById('total-records');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+
+    if (currentPageEl) currentPageEl.textContent = paginaAtual;
+    if (totalPagesEl) totalPagesEl.textContent = totalPaginas || 1;
+    if (totalRecordsEl) totalRecordsEl.textContent = totalRegistros;
+
+    // Atualizar estado dos botões
+    if (prevBtn) {
+        prevBtn.disabled = paginaAtual <= 1;
+        prevBtn.style.opacity = paginaAtual <= 1 ? '0.5' : '1';
+        prevBtn.style.cursor = paginaAtual <= 1 ? 'not-allowed' : 'pointer';
+    }
+
+    if (nextBtn) {
+        nextBtn.disabled = paginaAtual >= (totalPaginas || 1);
+        nextBtn.style.opacity = paginaAtual >= (totalPaginas || 1) ? '0.5' : '1';
+        nextBtn.style.cursor = paginaAtual >= (totalPaginas || 1) ? 'not-allowed' : 'pointer';
+    }
+}
+
+// Funções para navegação entre páginas
+function paginaAnterior() {
+    if (paginaAtual > 1) {
+        carregarMarcosLista(paginaAtual - 1);
+    }
+}
+
+function proximaPagina() {
+    if (paginaAtual < totalPaginas) {
+        carregarMarcosLista(paginaAtual + 1);
     }
 }
 

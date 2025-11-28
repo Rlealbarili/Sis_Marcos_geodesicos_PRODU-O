@@ -433,6 +433,19 @@
                             </div>
                         </div>
 
+                        <!-- Paginação -->
+                        <div id="marcos-pagination" style="display: flex; justify-content: center; align-items: center; gap: var(--space-3); margin-top: var(--space-6); padding: var(--space-4); border-top: 1px solid var(--border-primary);">
+                            <button id="prev-page" class="btn btn-secondary" onclick="paginaAnterior()">
+                                <i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i>
+                                Anterior
+                            </button>
+                            <span id="pagination-info" style="color: var(--text-secondary); min-width: 120px; text-align: center;">Página <span id="current-page">1</span> de <span id="total-pages">1</span> (<span id="total-records">0</span> registros)</span>
+                            <button id="next-page" class="btn btn-secondary" onclick="proximaPagina()">
+                                Próxima
+                                <i data-lucide="chevron-right" style="width: 18px; height: 18px;"></i>
+                            </button>
+                        </div>
+
                     </div>
                 </div>
 
@@ -748,7 +761,7 @@
                         <div style="display: flex; gap: var(--space-4); margin-bottom: var(--space-6);">
                             <div class="search-wrapper" style="flex: 1;">
                                 <i data-lucide="search" class="search-icon"></i>
-                                <input type="text" class="input input-search" placeholder="Buscar no histórico...">
+                                <input type="text" id="busca-historico" class="input input-search" placeholder="Buscar no histórico...">
                             </div>
                             <select class="input" style="width: 200px;">
                                 <option value="">Todas as ações</option>
@@ -760,90 +773,18 @@
                             <input type="date" class="input" style="width: 180px;">
                         </div>
 
-                        <!-- Timeline de Histórico -->
-                        <div id="historico-timeline" style="position: relative;">
-
-                            <!-- Item de Histórico -->
-                            <div style="display: flex; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--border-primary);">
-                                <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background-color: rgba(0, 168, 89, 0.1); color: var(--cogep-green); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                    <i data-lucide="upload" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
-                                        <div>
-                                            <h3 style="font-size: var(--text-base); font-weight: var(--weight-bold); color: var(--text-primary);">
-                                                Importação de Memorial Descritivo
-                                            </h3>
-                                            <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1);">
-                                                218 marcos importados com sucesso
-                                            </p>
-                                        </div>
-                                        <span style="font-size: var(--text-sm); color: var(--text-tertiary); white-space: nowrap;">
-                                            Há 2 horas
-                                        </span>
-                                    </div>
-                                    <div style="display: flex; gap: var(--space-2); margin-top: var(--space-3);">
-                                        <span class="marco-badge badge-sucesso">
-                                            <i data-lucide="check" style="width: 12px; height: 12px;"></i>
-                                            Sucesso
-                                        </span>
-                                        <span class="marco-badge">
-                                            arquivo_memorial_2024.csv
-                                        </span>
-                                    </div>
-                                </div>
+                        <!-- Lista de Atividades -->
+                        <div id="lista-historico" style="position: relative;">
+                            <!-- Os itens serão inseridos aqui via JavaScript -->
+                            <div style="grid-column: 1 / -1; text-align: center; padding: var(--space-12); color: var(--text-secondary);">
+                                <i data-lucide="loader-2" class="animate-spin" style="width: 48px; height: 48px; margin: 0 auto var(--space-4); display: block;"></i>
+                                <p>Carregando histórico de atividades...</p>
                             </div>
+                        </div>
 
-                            <!-- Item de Histórico -->
-                            <div style="display: flex; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--border-primary);">
-                                <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background-color: rgba(59, 130, 246, 0.1); color: #3B82F6; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                    <i data-lucide="edit" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
-                                        <div>
-                                            <h3 style="font-size: var(--text-base); font-weight: var(--weight-bold); color: var(--text-primary);">
-                                                Marco V-042 atualizado
-                                            </h3>
-                                            <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1);">
-                                                Coordenadas corrigidas manualmente
-                                            </p>
-                                        </div>
-                                        <span style="font-size: var(--text-sm); color: var(--text-tertiary); white-space: nowrap;">
-                                            Ontem
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Item de Histórico -->
-                            <div style="display: flex; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--border-primary);">
-                                <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background-color: rgba(245, 158, 11, 0.1); color: #F59E0B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                    <i data-lucide="plus-circle" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
-                                        <div>
-                                            <h3 style="font-size: var(--text-base); font-weight: var(--weight-bold); color: var(--text-primary);">
-                                                Nova propriedade cadastrada
-                                            </h3>
-                                            <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1);">
-                                                Fazenda Santa Rita - Matrícula 12.345
-                                            </p>
-                                        </div>
-                                        <span style="font-size: var(--text-sm); color: var(--text-tertiary); white-space: nowrap;">
-                                            3 dias atrás
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Placeholder vazio -->
-                            <div style="text-align: center; padding: var(--space-8); color: var(--text-secondary);">
-                                <i data-lucide="clock" style="width: 48px; height: 48px; margin-bottom: var(--space-4); opacity: 0.5;"></i>
-                                <p>Nenhuma atividade registrada ainda</p>
-                            </div>
-
+                        <!-- Paginação -->
+                        <div id="paginacao-historico" style="display: flex; justify-content: center; align-items: center; gap: var(--space-3); margin-top: var(--space-6); padding: var(--space-4); border-top: 1px solid var(--border-primary);">
+                            <!-- Será populado via JavaScript -->
                         </div>
 
                     </div>

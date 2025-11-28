@@ -418,6 +418,10 @@ app.get('/api/marcos/:codigo', async (req, res) => {
 const clientesRoutes = require('./routes/clientes');
 app.use('/api/clientes', clientesRoutes);
 
+// Rotas de Marcos
+const marcosRoutes = require('./routes/marcos');
+app.use('/api/marcos', marcosRoutes);
+
 // ============================================
 // ENDPOINT: Propriedades em GeoJSON
 // ============================================
@@ -645,6 +649,47 @@ app.post('/api/salvar-memorial-completo', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao salvar memorial: ' + error.message
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT: Obter municípios únicos
+// ============================================
+
+app.get('/api/municipios', async (req, res) => {
+    try {
+        const { tipo } = req.query; // Parâmetro opcional para filtrar por tipo de propriedade
+
+        let whereClause = "ativo = true";
+        let params = [];
+
+        if (tipo && tipo !== 'todos') {
+            params.push(tipo.toUpperCase());
+            whereClause += ` AND tipo = $${params.length}`;
+        }
+
+        const result = await query(`
+            SELECT DISTINCT municipio
+            FROM propriedades
+            WHERE ${whereClause}
+            AND municipio IS NOT NULL
+            AND municipio != ''
+            ORDER BY municipio
+        `, params);
+
+        const municipios = result.rows.map(row => row.municipio);
+
+        res.json({
+            sucesso: true,
+            municipios: municipios
+        });
+
+    } catch (error) {
+        console.error('[Municípios] Erro:', error);
+        res.status(500).json({
+            sucesso: false,
+            erro: error.message
         });
     }
 });
@@ -950,6 +995,70 @@ app.get('/api/relatorios/marcos/csv', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINT: Histórico de Atividades
+// ============================================
+
+app.get('/api/historico', async (req, res) => {
+    try {
+        const { pagina = 0, limite = 50, usuario, acao, entidade } = req.query;
+
+        let whereClause = "1=1";
+        let params = [];
+        let paramIndex = 1;
+
+        if (usuario) {
+            whereClause += ` AND usuario ILIKE $${paramIndex}`;
+            params.push(`%${usuario}%`);
+            paramIndex++;
+        }
+
+        if (acao) {
+            whereClause += ` AND acao = $${paramIndex}`;
+            params.push(acao);
+            paramIndex++;
+        }
+
+        if (entidade) {
+            whereClause += ` AND entidade_afetada = $${paramIndex}`;
+            params.push(entidade);
+            paramIndex++;
+        }
+
+        // Obter total de registros
+        const countResult = await query(
+            `SELECT COUNT(*) as total FROM logs_sistema WHERE ${whereClause}`,
+            params
+        );
+        const total = parseInt(countResult.rows[0].total);
+
+        // Obter registros com paginação
+        const offset = parseInt(pagina) * parseInt(limite);
+        const result = await query(`
+            SELECT * FROM logs_sistema
+            WHERE ${whereClause}
+            ORDER BY data_registro DESC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...params, parseInt(limite), offset]);
+
+        res.json({
+            sucesso: true,
+            dados: result.rows,
+            total: total,
+            pagina: parseInt(pagina),
+            limite: parseInt(limite),
+            total_paginas: Math.ceil(total / parseInt(limite))
+        });
+
+    } catch (error) {
+        console.error('[Histórico] Erro:', error);
+        res.status(500).json({
+            sucesso: false,
+            erro: error.message
+        });
+    }
+});
+
+// ============================================
 // SPA FALLBACK - Redirecionar para index.html
 // ============================================
 
@@ -1087,10 +1196,13 @@ app.post('/api/memorial/upload', upload.single('memorial'), async (req, res) => 
             contentType: req.file.mimetype
         });
 
+        // Obter URL da API Unstructured do ambiente (ou usar padrão)
+        const unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8000/general/v0/general';
+
         let unstructuredResponse;
         try {
             unstructuredResponse = await axios.post(
-                'http://localhost:8000/general/v0/general',
+                unstructuredApiUrl,
                 formData,
                 {
                     headers: formData.getHeaders(),
@@ -1159,6 +1271,22 @@ app.use((err, req, res, next) => {
         message: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
+
+// Função auxiliar para registrar log de atividade
+async function registrarLog(usuario, acao, entidade, registro_id, descricao, req = null) {
+    try {
+        const ip = req ? (req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip || '127.0.0.1').split(',')[0].trim() : '127.0.0.1';
+        const userAgent = req ? req.headers['user-agent'] : null;
+
+        await query(`
+            INSERT INTO logs_sistema (usuario, acao, entidade_afetada, registro_id, descricao, ip_origem, user_agent)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [usuario, acao, entidade, registro_id, descricao, ip, userAgent]);
+    } catch (error) {
+        console.error('Erro ao registrar log:', error);
+        // Não interrompe a operação principal se o log falhar
+    }
+}
 
 // ============================================
 // INICIAR SERVIDOR

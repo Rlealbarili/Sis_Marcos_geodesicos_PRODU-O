@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+  db_inventario:
+    image: postgis/postgis:16-3.4
+    container_name: db_inventario_prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-marcos123}
+      POSTGRES_DB: marcos_geodesicos
+    volumes:
+      - pg_data_inventario:/var/lib/postgresql/data
+      - ./backend/database/init_schema.sql:/docker-entrypoint-initdb.d/1_init_schema.sql
+    ports:
+      - "5436:5432"
+    networks:
+      - rede_inventario
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app_inventario:
+    build: .
+    container_name: app_inventario_prod
+    restart: always
+    environment:
+      PORT: 3002
+      POSTGRES_HOST: db_inventario
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: marcos_geodesicos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-marcos123}
+      UNSTRUCTURED_API_URL: http://unstructured_api_prod:8000
+    ports:
+      - "3002:3002"
+    depends_on:
+      - db_inventario
+      - unstructured_api_prod
+    networks:
+      - rede_inventario
+
+  unstructured_api_prod:
+    image: downloads.unstructured.io/unstructured-io/unstructured-api:latest
+    container_name: unstructured_api_prod
+    restart: always
+    ports:
+      - "8001:8000"
+    networks:
+      - rede_inventario
+
+networks:
+  rede_inventario:
+    driver: bridge
+
+volumes:
+  pg_data_inventario:
