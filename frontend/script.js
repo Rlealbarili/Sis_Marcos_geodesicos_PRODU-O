@@ -4280,6 +4280,12 @@ function exportarMarcosExcel() {
     console.log('✅ Exportando marcos para Excel via API');
 }
 
+function exportarMarcosDXF() {
+    // Usar endpoint do backend para exportar
+    window.location.href = '/api/marcos/exportar-dxf';
+    console.log('✅ Exportando marcos para DXF via API');
+}
+
 function verMarcoNoMapa(lat, lng, nome) {
     // Trocar para aba do mapa
     trocarAba('mapa');

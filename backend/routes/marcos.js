@@ -359,4 +359,38 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// ========================================
+// GET /api/marcos/exportar-dxf - Exportar marcos em formato DXF
+// ========================================
+router.get('/exportar-dxf', async (req, res) => {
+    try {
+        // Importar o gerador DXF
+        const { gerarDXF } = require('../utils/dxf-generator');
+
+        // Buscar marcos validados
+        const result = await query(
+            `SELECT codigo, coordenada_e, coordenada_n, altitude
+             FROM marcos_levantados
+             WHERE validado = true`,
+            []
+        );
+
+        // Gerar conteúdo DXF
+        const dxfContent = gerarDXF(result.rows);
+
+        // Enviar como download
+        res.setHeader('Content-Type', 'application/dxf');
+        res.setHeader('Content-Disposition', 'attachment; filename=marcos_inventario.dxf');
+        res.send(dxfContent);
+
+    } catch (error) {
+        console.error('Erro ao exportar marcos para DXF:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao exportar marcos para DXF',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

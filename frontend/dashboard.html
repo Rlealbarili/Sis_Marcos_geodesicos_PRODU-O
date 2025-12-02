@@ -275,12 +275,6 @@
                     </div>
                 </div>
 
-                <div class="chart-card">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Análise de Riscos</h3>
-                    <div class="chart-container">
-                        <canvas id="chartRiscos"></canvas>
-                    </div>
-                </div>
 
                 <div class="chart-card">
                     <h3><i class="fas fa-calendar-alt"></i> Atividades (30 dias)</h3>
@@ -307,7 +301,6 @@
         let dadosGlobais = null;
         let chartTipos = null;
         let chartEstados = null;
-        let chartRiscos = null;
         let chartTimeline = null;
 
         async function carregarDados() {
@@ -368,13 +361,6 @@
                     cor: 'success'
                 },
                 {
-                    titulo: 'Parcelas SIGEF',
-                    valor: Number(dados.sigef.total_parcelas_sigef).toLocaleString('pt-BR'),
-                    subtitulo: `${dados.sigef.estados_importados} estados importados`,
-                    icon: 'fa-database',
-                    cor: 'info'
-                },
-                {
                     titulo: 'Marcos Geodésicos',
                     valor: Number(dados.marcos.total_marcos).toLocaleString('pt-BR'),
                     subtitulo: `${dados.marcos.marcos_levantados} levantados`,
@@ -382,32 +368,11 @@
                     cor: 'success'
                 },
                 {
-                    titulo: 'Sobreposições Detectadas',
-                    valor: Number(dados.sobreposicoes.total_sobreposicoes || 0).toLocaleString('pt-BR'),
-                    subtitulo: `${dados.sobreposicoes.propriedades_com_sobreposicao || 0} propriedades afetadas`,
-                    icon: 'fa-exclamation-triangle',
-                    cor: dados.sobreposicoes.total_sobreposicoes > 0 ? 'warning' : 'success'
-                },
-                {
-                    titulo: 'Confrontantes Identificados',
-                    valor: Number(dados.confrontantes.total_confrontantes || 0).toLocaleString('pt-BR'),
-                    subtitulo: `${dados.confrontantes.limites_comuns || 0} limites comuns`,
-                    icon: 'fa-users',
-                    cor: 'info'
-                },
-                {
                     titulo: 'Total de Clientes',
                     valor: Number(dados.propriedades.total_clientes).toLocaleString('pt-BR'),
                     subtitulo: `${dados.propriedades.total_municipios} municípios`,
                     icon: 'fa-user-tie',
                     cor: 'success'
-                },
-                {
-                    titulo: 'Risco Alto/Crítico',
-                    valor: Number(dados.riscos.risco_alto || 0).toLocaleString('pt-BR'),
-                    subtitulo: `${((dados.riscos.risco_alto / dados.riscos.total_analisadas) * 100 || 0).toFixed(1)}% do total`,
-                    icon: 'fa-shield-alt',
-                    cor: dados.riscos.risco_alto > 0 ? 'danger' : 'success'
                 }
             ];
 
@@ -428,7 +393,6 @@
             // Destruir gráficos existentes
             if (chartTipos) chartTipos.destroy();
             if (chartEstados) chartEstados.destroy();
-            if (chartRiscos) chartRiscos.destroy();
             if (chartTimeline) chartTimeline.destroy();
 
             // Gráfico de Tipos
@@ -490,33 +454,6 @@
                 }
             });
 
-            // Gráfico de Riscos
-            const ctxRiscos = document.getElementById('chartRiscos').getContext('2d');
-            chartRiscos = new Chart(ctxRiscos, {
-                type: 'pie',
-                data: {
-                    labels: ['Risco Baixo', 'Risco Médio', 'Risco Alto'],
-                    datasets: [{
-                        data: [
-                            dados.riscos.risco_baixo || 0,
-                            dados.riscos.risco_medio || 0,
-                            dados.riscos.risco_alto || 0
-                        ],
-                        backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
 
             // Gráfico de Timeline
             const ctxTimeline = document.getElementById('chartTimeline').getContext('2d');
