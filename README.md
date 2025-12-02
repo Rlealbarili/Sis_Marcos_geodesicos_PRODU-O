@@ -2,7 +2,18 @@
 
 ## Visão Geral
 
-Este é o sistema de inventário de marcos geodésicos, propriedades e clientes. O sistema permite catalogar, visualizar e gerenciar marcos geodésicos com funcionalidades de georreferenciamento e importação de dados de memorial descritivo.
+Este é o sistema de inventário de marcos geodésicos, propriedades e clientes. O sistema permite catalogar, visualizar e gerenciar marcos geodésicos com funcionalidades de georreferenciamento, importação de dados de memorial descritivo e recursos de engenharia CAD.
+
+### Principais Funcionalidades
+
+- **Inventário de Marcos Geodésicos**: Cadastro e gerenciamento de marcos geodésicos com visualização georreferenciada
+- **Gestão de Propriedades**: Cadastro e visualização de propriedades georreferenciadas
+- **Gestão de Clientes**: Cadastro e gerenciamento de clientes proprietários
+- **Importação de Documentos**: Processamento automático de memoriais descritivos (.docx)
+- **Exportação CAD (DXF)**: Geração de arquivos DXF com localização e identificação de marcos
+- **Dashboard Executivo**: Painel com estatísticas de inventário
+- **Histórico de Auditoria**: Registro de todas as operações do sistema
+- **Tema Escuro/Claro**: Persistência e aplicação de preferência de tema
 
 ## Infraestrutura de Produção
 
@@ -19,6 +30,33 @@ Para subir o ambiente de produção, execute:
 ```bash
 docker-compose -f docker-compose.prod.yml up -d
 ```
+
+## Funcionalidades Atualizadas
+
+### Exportação CAD (DXF)
+- Nova funcionalidade de exportação de marcos geodésicos para formato DXF
+- Cada marco é exportado como um ponto com identificação textual
+- Compatibilidade com software CAD (AutoCAD, MicroStation, etc.)
+- Acesso via botão "Exportar DXF (CAD)" na aba de busca de marcos
+
+### Dashboard de Inventário
+- Remoção de componentes de análise fundiária (sobreposições, confrontantes, risco)
+- Atualização para focar apenas em métricas de inventário
+- KPIs restantes: Total de Propriedades, Área Total, Marcos Geodésicos, Total de Clientes
+
+### Histórico de Auditoria
+- Registro automático de todas as operações do sistema
+- Acesso via aba "Histórico" no frontend
+- Filtros por usuário, ação e entidade
+
+### Gestão de Clientes
+- Melhoria na busca e filtragem de clientes
+- Integração com cadastros de propriedades
+
+### Tema Escuro/Claro
+- Persistência da preferência de tema via localStorage
+- Aplicação imediata na inicialização da página
+- Interface otimizada para ambos os temas
 
 ## Migração de Dados
 

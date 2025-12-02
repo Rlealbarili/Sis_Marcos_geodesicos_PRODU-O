@@ -67,6 +67,7 @@ O banco de dados contém as seguintes tabelas principais:
 - `propriedades`: Informações sobre propriedades georreferenciadas
 - `marcos_levantados`: Informações sobre marcos geodésicos
 - `vertices`: Vértices que definem a geometria das propriedades
+- `logs_sistema`: Registros de auditoria de todas as operações do sistema
 
 As colunas foram ajustadas para acomodar dados de diferentes tamanhos:
 - `nome` e `nome_propriedade`: Ajustados para até 1000 caracteres

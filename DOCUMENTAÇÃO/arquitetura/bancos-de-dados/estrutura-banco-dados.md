@@ -106,6 +106,20 @@ Armazena os vértices que definem a geometria de uma propriedade.
 - `created_at` (TIMESTAMP): Data de criação do registro
 - `updated_at` (TIMESTAMP): Data da última atualização
 
+### 3.5. Tabela `logs_sistema` (Histórico de Auditoria)
+Armazena registros de auditoria de todas as operações realizadas no sistema.
+
+**Campos:**
+- `id` (SERIAL, PRIMARY KEY): Identificador único do log
+- `usuario` (VARCHAR): Nome do usuário que executou a ação
+- `acao` (VARCHAR): Tipo da ação realizada ('CRIACAO', 'EDICAO', 'EXCLUSAO', 'IMPORTACAO')
+- `entidade` (VARCHAR): Tipo de entidade afetada ('MARCO', 'PROPRIEDADE', 'CLIENTE')
+- `entidade_id` (INTEGER): ID da entidade afetuada
+- `detalhes` (TEXT): Descrição detalhada da operação
+- `data_hora` (TIMESTAMP): Data e hora do registro (com valor padrão CURRENT_TIMESTAMP)
+
+Criada para suportar o sistema de histórico de auditoria do inventário de marcos geodésicos.
+
 ## 4. Visões de Banco de Dados (Views)
 
 ### 4.1. `vw_clientes_completa` (View de Clientes Completa)
@@ -226,7 +240,7 @@ O sistema suporta processamento de planilhas (.csv, .xls) para importação em l
 - Tratamento de erros e fallbacks apropriados
 
 ### 10.3. Conexão com Sistemas Externos
-O sistema está preparado para integração com sistemas SIGEF e CAR (embora não implementados na versão atual), conforme mencionado em CURRENT_STATE.md.
+O sistema está preparado para integração com sistemas SIGEF (embora não implementados na versão atual), conforme mencionado em CURRENT_STATE.md. Funcionalidades relacionadas ao Cadastro Ambiental Rural (CAR) e análise fundiária foram removidas do escopo atual para focar exclusivamente no inventário de marcos geodésicos.
 
 ## 11. Restrições e Regras de Negócio
 

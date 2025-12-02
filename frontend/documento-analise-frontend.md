@@ -6,7 +6,7 @@
   - `styles/` - Arquivos CSS (design-system.css, components.css, layout.css, animations.css)
   - `js/` - Scripts JS complementares (clustering.js, performance-test.js)
   - `assets/` - Arquivos estáticos (imagens, logos)
-  - Arquivos HTML principais: `index.html`, `dashboard.html`, `analise-fundiaria.html`, etc.
+  - Arquivos HTML principais: `index.html`, `dashboard.html`, etc.
   - Arquivos JS principais: `script.js`, `script-poligonos.js`, `busca-raio.js`
 
 ## 2. Arquivos Principais do Frontend
@@ -39,7 +39,7 @@
 
 - Conexão via fetch API para endpoints REST
 - API_URL configurado dinamicamente com base na origem
-- Endpoints para marcos, propriedades, clientes, SIGEF, CAR, conversões
+- Endpoints para marcos, propriedades, clientes, SIGEF e conversões
 
 ## 7. Fluxo de Requisições e Tratamento de Erros
 
@@ -53,9 +53,19 @@
 - **Mapas**: Integração com Leaflet para visualização de marcos e propriedades
 - **CAD**: Sistema de cadastro de marcos com coordenadas UTM/LatLng
 - **SIGEF**: Integração para busca e exibição de dados SIGEF
-- **CAR**: Integração para busca de dados do Cadastro Ambiental Rural
 - **Conversões**: Sistema de conversão entre UTM e Lat/Lng usando proj4
-- **Análise Fundiária**: Detecção de sobreposições e confrontantes
 - **Georreferenciamento**: Sistema de conversão de coordenadas e projeção EPSG:31982
+- **Exportação DXF**: Geração de arquivos CAD com localização de marcos
+- **Dashboard Executivo**: Painel com estatísticas de inventário
+- **Histórico de Auditoria**: Registro e visualização de operações do sistema
+- **Tema Escuro/Claro**: Persistência e aplicação de preferência de tema
 
-O frontend é bem estruturado com um design system moderno inspirado no X (Twitter), funcionalidades completas para georreferenciamento e análise fundiária, e uma boa separação de responsabilidades entre os diferentes componentes.
+## 9. Mudanças Recentes
+
+- **Remoção de Análise Fundiária**: As funcionalidades de análise fundiária (sobreposições, confrontantes, risco) foram removidas para focar exclusivamente no inventário de marcos
+- **Novo Dashboard**: Atualização do dashboard para exibir apenas métricas de inventário
+- **Exportação CAD (DXF)**: Nova funcionalidade para exportação de marcos em formato DXF
+- **Histórico de Auditoria**: Sistema de registro e visualização de todas as operações
+- **Gestão de Clientes**: Melhorias na busca e filtragem de clientes
+
+O frontend é bem estruturado com um design system moderno inspirado no X (Twitter), funcionalidades completas para georreferenciamento e inventário de marcos, e uma boa separação de responsabilidades entre os diferentes componentes.
