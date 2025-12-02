@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
-const fs = require('fs');
 require('dotenv').config({ path: './backend/.env', override: true });
 const { query, transaction, healthCheck, pool } = require('./database/postgres-connection');
 const ReportGenerator = require('./report-generator');
@@ -24,7 +23,6 @@ proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
 console.log('✅ Sistemas de coordenadas configurados (EPSG:31982 → EPSG:4326)');
 
 const app = express();
-// MUDANÇA DE PORTA SUGERIDA: 3002
 const PORT = process.env.PORT || 3002;
 
 // Middleware
@@ -437,9 +435,8 @@ app.get('/api/propriedades/geojson', async (req, res) => {
                 p.municipio,
                 p.uf,
                 p.area_m2,
-                p.area_calculada,
                 p.perimetro_m,
-                p.perimetro_calculado,
+                p.observacoes,
                 c.nome as cliente_nome,
                 ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geometry
             FROM propriedades p
@@ -463,9 +460,8 @@ app.get('/api/propriedades/geojson', async (req, res) => {
                         municipio: row.municipio,
                         uf: row.uf,
                         area_m2: parseFloat(row.area_m2) || 0,
-                        area_calculada: parseFloat(row.area_calculada) || 0,
                         perimetro_m: parseFloat(row.perimetro_m) || 0,
-                        perimetro_calculado: parseFloat(row.perimetro_calculado) || 0,
+                        observacoes: row.observacoes,
                         cliente_nome: row.cliente_nome
                     },
                     geometry: geometry
@@ -485,516 +481,6 @@ const propriedadesRoutes = require('./routes/propriedades');
 app.use('/api/propriedades', propriedadesRoutes);
 
 // ============================================
-// ENDPOINT: Listar Clientes
-// ============================================
-
-app.get('/api/clientes', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT
-                id,
-                nome,
-                tipo_pessoa,
-                cpf_cnpj,
-                email,
-                telefone,
-                endereco,
-                created_at
-            FROM clientes
-            ORDER BY nome ASC
-        `);
-
-        res.json({
-            success: true,
-            data: result.rows,
-            total: result.rows.length
-        });
-    } catch (error) {
-        console.error('❌ Erro ao listar clientes:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro ao buscar clientes',
-            error: error.message
-        });
-    }
-});
-
-// ============================================
-// ENDPOINT: Salvar Memorial Completo
-// ============================================
-
-app.post('/api/salvar-memorial-completo', async (req, res) => {
-    try {
-        const { cliente, propriedade, vertices } = req.body;
-
-        if (!propriedade || !vertices || !Array.isArray(vertices) || vertices.length < 3) {
-            return res.status(400).json({
-                success: false,
-                message: 'Dados incompletos. São necessários pelo menos 3 vértices.'
-            });
-        }
-
-        const result = await transaction(async (client) => {
-            // 1. SALVAR/BUSCAR CLIENTE
-            let clienteId;
-            if (cliente.novo) {
-                const clienteResult = await client.query(
-                    `INSERT INTO clientes (nome, tipo_pessoa, cpf_cnpj, email, telefone, endereco)
-                     VALUES ($1, $2, $3, $4, $5, $6)
-                     RETURNING id`,
-                    [
-                        cliente.nome,
-                        cliente.tipo_pessoa || 'fisica',
-                        cliente.cpf_cnpj || null,
-                        cliente.email || null,
-                        cliente.telefone || null,
-                        cliente.endereco || null
-                    ]
-                );
-                clienteId = clienteResult.rows[0].id;
-            } else {
-                clienteId = cliente.id;
-            }
-
-            // 2. CONSTRUIR GEOMETRIA WKT
-            const pontos = vertices.map(v => `${v.coordenadas.e} ${v.coordenadas.n}`);
-            const primeiro = vertices[0];
-            const ultimo = vertices[vertices.length - 1];
-            const distancia = Math.sqrt(
-                Math.pow(ultimo.coordenadas.e - primeiro.coordenadas.e, 2) +
-                Math.pow(ultimo.coordenadas.n - primeiro.coordenadas.n, 2)
-            );
-
-            if (distancia > 0.01) {
-                pontos.push(`${primeiro.coordenadas.e} ${primeiro.coordenadas.n}`);
-            }
-
-            const wkt = `POLYGON((${pontos.join(',')}))`;
-
-            // 3. SALVAR PROPRIEDADE COM GEOMETRY
-            const propResult = await client.query(
-                `INSERT INTO propriedades
-                 (nome_propriedade, cliente_id, matricula, tipo, municipio, comarca, uf,
-                  area_m2, perimetro_m, geometry)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_GeomFromText($10, 31982))
-                 RETURNING id`,
-                [
-                    propriedade.nome_propriedade || 'Sem nome',
-                    clienteId,
-                    propriedade.matricula,
-                    propriedade.tipo || 'RURAL',
-                    propriedade.municipio || null,
-                    propriedade.comarca || null,
-                    propriedade.uf || null,
-                    propriedade.area_m2 || null,
-                    propriedade.perimetro_m || null,
-                    wkt
-                ]
-            );
-
-            const propriedadeId = propResult.rows[0].id;
-
-            // 4. CALCULAR ÁREA E PERÍMETRO VIA POSTGIS
-            const calcResult = await client.query(
-                `UPDATE propriedades
-                 SET area_calculada = ST_Area(geometry),
-                     perimetro_calculado = ST_Perimeter(geometry)
-                 WHERE id = $1
-                 RETURNING area_calculada, perimetro_calculado,
-                           ST_AsGeoJSON(geometry) as geojson`,
-                [propriedadeId]
-            );
-
-            const geometryData = calcResult.rows[0];
-
-            // 5. SALVAR VÉRTICES
-            for (let i = 0; i < vertices.length; i++) {
-                const v = vertices[i];
-                await client.query(
-                    `INSERT INTO vertices
-                     (propriedade_id, nome, ordem, utm_e, utm_n, latitude, longitude, utm_zona, datum)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                    [
-                        propriedadeId,
-                        v.nome || null,
-                        i + 1,
-                        v.coordenadas.e,
-                        v.coordenadas.n,
-                        v.coordenadas.lat_original || null,
-                        v.coordenadas.lon_original || null,
-                        v.coordenadas.utm_zona || '22S',
-                        v.coordenadas.datum || 'SIRGAS2000'
-                    ]
-                );
-            }
-
-            return {
-                cliente_id: clienteId,
-                propriedade_id: propriedadeId,
-                vertices_criados: vertices.length,
-                area_calculada: parseFloat(geometryData.area_calculada),
-                perimetro_calculado: parseFloat(geometryData.perimetro_calculado),
-                geojson: JSON.parse(geometryData.geojson)
-            };
-        });
-
-        res.json({
-            success: true,
-            message: 'Memorial salvo com sucesso!',
-            data: result
-        });
-
-    } catch (error) {
-        console.error('[Salvar Memorial] ❌ Erro:', error.message);
-        res.status(500).json({
-            success: false,
-            message: 'Erro ao salvar memorial: ' + error.message
-        });
-    }
-});
-
-// ============================================
-// ENDPOINT: Obter municípios únicos
-// ============================================
-
-app.get('/api/municipios', async (req, res) => {
-    try {
-        const { tipo } = req.query; // Parâmetro opcional para filtrar por tipo de propriedade
-
-        let whereClause = "ativo = true";
-        let params = [];
-
-        if (tipo && tipo !== 'todos') {
-            params.push(tipo.toUpperCase());
-            whereClause += ` AND tipo = $${params.length}`;
-        }
-
-        const result = await query(`
-            SELECT DISTINCT municipio
-            FROM propriedades
-            WHERE ${whereClause}
-            AND municipio IS NOT NULL
-            AND municipio != ''
-            ORDER BY municipio
-        `, params);
-
-        const municipios = result.rows.map(row => row.municipio);
-
-        res.json({
-            sucesso: true,
-            municipios: municipios
-        });
-
-    } catch (error) {
-        console.error('[Municípios] Erro:', error);
-        res.status(500).json({
-            sucesso: false,
-            erro: error.message
-        });
-    }
-});
-
-// ============================================
-// ENDPOINT: Relatórios
-// ============================================
-
-const reportGenerator = require('./report-generator');
-
-// Relatório de Propriedades em PDF
-app.get('/api/relatorios/propriedades/pdf', async (req, res) => {
-    try {
-        const filtros = {};
-        let whereConditions = ['p.ativo = true'];
-        const params = [];
-
-        if (req.query.cliente_id) {
-            params.push(req.query.cliente_id);
-            whereConditions.push(`p.cliente_id = $${params.length}`);
-            filtros['Cliente ID'] = req.query.cliente_id;
-        }
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`p.municipio ILIKE $${params.length}`);
-            filtros['Município'] = req.query.municipio;
-        }
-
-        if (req.query.tipo) {
-            params.push(req.query.tipo);
-            whereConditions.push(`p.tipo = $${params.length}`);
-            filtros['Tipo'] = req.query.tipo;
-        }
-
-        const sql = `
-            SELECT
-                p.id,
-                p.nome_propriedade,
-                p.matricula,
-                p.tipo,
-                p.municipio,
-                p.uf,
-                p.area_m2,
-                p.perimetro_m,
-                p.observacoes,
-                c.nome as cliente_nome
-            FROM propriedades p
-            LEFT JOIN clientes c ON p.cliente_id = c.id
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY p.nome_propriedade
-        `;
-
-        const result = await query(sql, params);
-        const pdfResult = await reportGenerator.gerarPDFPropriedades(result.rows, filtros);
-
-        res.download(pdfResult.filepath, pdfResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório PDF] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório PDF] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório PDF: ' + error.message });
-    }
-});
-
-// Relatório de Propriedades em Excel
-app.get('/api/relatorios/propriedades/excel', async (req, res) => {
-    try {
-        const filtros = {};
-        let whereConditions = ['p.ativo = true'];
-        const params = [];
-
-        if (req.query.cliente_id) {
-            params.push(req.query.cliente_id);
-            whereConditions.push(`p.cliente_id = $${params.length}`);
-            filtros['Cliente ID'] = req.query.cliente_id;
-        }
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`p.municipio ILIKE $${params.length}`);
-            filtros['Município'] = req.query.municipio;
-        }
-
-        const sql = `
-            SELECT
-                p.id,
-                p.nome_propriedade,
-                p.matricula,
-                p.tipo,
-                p.municipio,
-                p.uf,
-                p.area_m2,
-                p.perimetro_m,
-                c.nome as cliente_nome
-            FROM propriedades p
-            LEFT JOIN clientes c ON p.cliente_id = c.id
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY p.nome_propriedade
-        `;
-
-        const result = await query(sql, params);
-        const excelResult = await reportGenerator.gerarExcelPropriedades(result.rows, filtros);
-
-        res.download(excelResult.filepath, excelResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório Excel] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório Excel] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório Excel: ' + error.message });
-    }
-});
-
-// Relatório de Propriedades em CSV
-app.get('/api/relatorios/propriedades/csv', async (req, res) => {
-    try {
-        let whereConditions = ['p.ativo = true'];
-        const params = [];
-
-        if (req.query.cliente_id) {
-            params.push(req.query.cliente_id);
-            whereConditions.push(`p.cliente_id = $${params.length}`);
-        }
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`p.municipio ILIKE $${params.length}`);
-        }
-
-        const sql = `
-            SELECT
-                p.id,
-                p.nome_propriedade,
-                p.matricula,
-                p.tipo,
-                p.municipio,
-                p.uf,
-                p.area_m2,
-                p.perimetro_m
-            FROM propriedades p
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY p.nome_propriedade
-        `;
-
-        const result = await query(sql, params);
-        const csvResult = await reportGenerator.gerarCSVPropriedades(result.rows);
-
-        res.download(csvResult.filepath, csvResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório CSV] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório CSV] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório CSV: ' + error.message });
-    }
-});
-
-// Relatório de Marcos Geodésicos em PDF
-app.get('/api/relatorios/marcos/pdf', async (req, res) => {
-    try {
-        const filtros = {};
-        let whereConditions = ['1=1'];
-        const params = [];
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`municipio ILIKE $${params.length}`);
-            filtros['Município'] = req.query.municipio;
-        }
-
-        if (req.query.tipo) {
-            params.push(req.query.tipo);
-            whereConditions.push(`tipo = $${params.length}`);
-            filtros['Tipo'] = req.query.tipo;
-        }
-
-        if (req.query.status) {
-            params.push(req.query.status);
-            whereConditions.push(`status = $${params.length}`);
-            filtros['Status'] = req.query.status;
-        }
-
-        const sql = `
-            SELECT
-                id, codigo, tipo, municipio, estado,
-                latitude, longitude, altitude,
-                status, observacoes
-            FROM marcos_levantados
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY codigo
-        `;
-
-        const result = await query(sql, params);
-        const pdfResult = await reportGenerator.gerarPDFMarcos(result.rows, filtros);
-
-        res.download(pdfResult.filepath, pdfResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório Marcos PDF] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório Marcos PDF] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório PDF: ' + error.message });
-    }
-});
-
-// Relatório de Marcos Geodésicos em Excel
-app.get('/api/relatorios/marcos/excel', async (req, res) => {
-    try {
-        const filtros = {};
-        let whereConditions = ['1=1'];
-        const params = [];
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`municipio ILIKE $${params.length}`);
-            filtros['Município'] = req.query.municipio;
-        }
-
-        if (req.query.tipo) {
-            params.push(req.query.tipo);
-            whereConditions.push(`tipo = $${params.length}`);
-            filtros['Tipo'] = req.query.tipo;
-        }
-
-        const sql = `
-            SELECT
-                id, codigo, tipo, municipio, estado,
-                latitude, longitude, altitude, status
-            FROM marcos_levantados
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY codigo
-        `;
-
-        const result = await query(sql, params);
-        const excelResult = await reportGenerator.gerarExcelMarcos(result.rows, filtros);
-
-        res.download(excelResult.filepath, excelResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório Marcos Excel] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório Marcos Excel] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório Excel: ' + error.message });
-    }
-});
-
-// Relatório de Marcos Geodésicos em CSV
-app.get('/api/relatorios/marcos/csv', async (req, res) => {
-    try {
-        let whereConditions = ['1=1'];
-        const params = [];
-
-        if (req.query.municipio) {
-            params.push(req.query.municipio);
-            whereConditions.push(`municipio ILIKE $${params.length}`);
-        }
-
-        if (req.query.tipo) {
-            params.push(req.query.tipo);
-            whereConditions.push(`tipo = $${params.length}`);
-        }
-
-        const sql = `
-            SELECT
-                id, codigo, tipo, municipio, estado,
-                latitude, longitude, altitude, status
-            FROM marcos_levantados
-            WHERE ${whereConditions.join(' AND ')}
-            ORDER BY codigo
-        `;
-
-        const result = await query(sql, params);
-        const csvResult = await reportGenerator.gerarCSVMarcos(result.rows);
-
-        res.download(csvResult.filepath, csvResult.filename, (err) => {
-            if (err) {
-                console.error('[Relatório Marcos CSV] Erro ao enviar arquivo:', err);
-                res.status(500).json({ error: 'Erro ao enviar relatório' });
-            }
-        });
-
-    } catch (error) {
-        console.error('[Relatório Marcos CSV] ❌ Erro:', error);
-        res.status(500).json({ error: 'Erro ao gerar relatório CSV: ' + error.message });
-    }
-});
-
-// ============================================
 // ENDPOINT: Histórico de Atividades
 // ============================================
 
@@ -1007,20 +493,20 @@ app.get('/api/historico', async (req, res) => {
         let paramIndex = 1;
 
         if (usuario) {
+            params.push(usuario);
             whereClause += ` AND usuario ILIKE $${paramIndex}`;
-            params.push(`%${usuario}%`);
             paramIndex++;
         }
 
         if (acao) {
-            whereClause += ` AND acao = $${paramIndex}`;
             params.push(acao);
+            whereClause += ` AND acao = $${paramIndex}`;
             paramIndex++;
         }
 
         if (entidade) {
-            whereClause += ` AND entidade_afetada = $${paramIndex}`;
             params.push(entidade);
+            whereClause += ` AND entidade_afetada = $${paramIndex}`;
             paramIndex++;
         }
 
@@ -1058,6 +544,57 @@ app.get('/api/historico', async (req, res) => {
     }
 });
 
+// Nova rota para histórico com paginação aprimorada
+app.get('/api/logs-sistema', async (req, res) => {
+    try {
+        const { limite = 50, offset = 0, busca } = req.query;
+
+        let whereClause = "1=1";
+        let params = [];
+        let paramIndex = 1;
+
+        if (busca) {
+            whereClause += ` AND (usuario ILIKE $${paramIndex} OR descricao ILIKE $${paramIndex} OR entidade_afetada ILIKE $${paramIndex})`;
+            params.push(`%${busca}%`);
+            paramIndex++;
+        }
+
+        // Obter total de registros
+        const countResult = await query(
+            `SELECT COUNT(*) as total FROM logs_sistema WHERE ${whereClause}`,
+            params
+        );
+        const total = parseInt(countResult.rows[0].total);
+
+        // Obter registros com paginação
+        params.push(parseInt(limite));
+        params.push(parseInt(offset));
+
+        const result = await query(`
+            SELECT * FROM logs_sistema
+            WHERE ${whereClause}
+            ORDER BY data_registro DESC
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, params);
+
+        res.json({
+            sucesso: true,
+            dados: result.rows,
+            total: total,
+            limite: parseInt(limite),
+            offset: parseInt(offset),
+            total_paginas: Math.ceil(total / parseInt(limite))
+        });
+
+    } catch (error) {
+        console.error('[Logs Sistema] Erro:', error);
+        res.status(500).json({
+            sucesso: false,
+            erro: error.message
+        });
+    }
+});
+
 // ============================================
 // SPA FALLBACK - Redirecionar para index.html
 // ============================================
@@ -1081,8 +618,8 @@ app.get('/api/dashboard/estatisticas', async (req, res) => {
                 COUNT(*) as total_propriedades,
                 COUNT(CASE WHEN tipo = 'RURAL' THEN 1 END) as total_rural,
                 COUNT(CASE WHEN tipo = 'URBANA' THEN 1 END) as total_urbana,
-                COALESCE(SUM(area_calculada), 0) as area_total_m2,
-                COALESCE(SUM(area_calculada)/10000, 0) as area_total_hectares,
+                COALESCE(SUM(area_m2), 0) as area_total_m2,
+                COALESCE(SUM(area_m2)/10000, 0) as area_total_hectares,
                 COUNT(CASE WHEN geometry IS NOT NULL THEN 1 END) as com_geometria,
                 COUNT(DISTINCT cliente_id) as total_clientes,
                 COUNT(DISTINCT municipio) as total_municipios
@@ -1105,7 +642,7 @@ app.get('/api/dashboard/estatisticas', async (req, res) => {
             SELECT
                 COALESCE(uf, 'N/A') as estado,
                 COUNT(*) as quantidade,
-                COALESCE(SUM(area_calculada/10000), 0) as area_total_ha
+                COALESCE(SUM(area_m2/10000), 0) as area_total_ha
             FROM propriedades
             WHERE ativo = true
             GROUP BY uf
@@ -1225,7 +762,7 @@ app.post('/api/memorial/upload', upload.single('memorial'), async (req, res) => 
         // Formatar resposta para o frontend
         const resposta = {
             sucesso: true,
-            total_marcos: resultado.vertices.length,
+            total_vertices: resultado.vertices.length,
             area_m2: resultado.metadata.area || null,
             perimetro_m: resultado.metadata.perimetro || null,
             vertices: resultado.vertices,
@@ -1275,7 +812,7 @@ app.use((err, req, res, next) => {
 // Função auxiliar para registrar log de atividade
 async function registrarLog(usuario, acao, entidade, registro_id, descricao, req = null) {
     try {
-        const ip = req ? (req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip || '127.0.0.1').split(',')[0].trim() : '127.0.0.1';
+        const ip = req ? (req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip || '127.0.0.1').split(',')[0].trim() : '127.0.0.1';
         const userAgent = req ? req.headers['user-agent'] : null;
 
         await query(`

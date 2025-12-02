@@ -4356,58 +4356,40 @@ async function importarPlanilhaMarcos() {
     btnImportar.textContent = '⏳ Importando...';
 
     try {
-        // Ler arquivo
-        const texto = await arquivo.text();
-        const linhas = texto.split('\n');
-
-        if (linhas.length < 2) {
-            throw new Error('Arquivo vazio ou sem dados');
-        }
-
-        // Parsear CSV
-        const marcosImportar = [];
-        const cabecalho = linhas[0].split(',').map(c => c.trim().replace(/"/g, ''));
-
-        for (let i = 1; i < linhas.length; i++) {
-            const linha = linhas[i];
-            if (!linha.trim()) continue;
-
-            const valores = linha.split(',').map(v => v.trim().replace(/"/g, ''));
-
-            if (valores.length >= 4) {
-                marcosImportar.push({
-                    nome: valores[0],
-                    tipo: valores[1],
-                    municipio: valores[2],
-                    uf: valores[3],
-                    latitude: valores[4] ? parseFloat(valores[4]) : null,
-                    longitude: valores[5] ? parseFloat(valores[5]) : null,
-                    altitude: valores[6] ? parseFloat(valores[6]) : null,
-                    ano_implantacao: valores[7] ? parseInt(valores[7]) : null
-                });
-            }
-        }
+        // Create form data with the file
+        const formData = new FormData();
+        formData.append('csvFile', arquivo);
 
         resultadoDiv.innerHTML = `
             <div class="mensagem mensagem-info">
-                ⏳ Importando ${marcosImportar.length} marcos...<br>
+                ⏳ Enviando arquivo para processamento via API Unstructured...<br>
                 Aguarde, isso pode levar alguns segundos.
             </div>
         `;
 
-        // Aqui você implementaria a chamada para o backend
-        // Por enquanto, apenas simulação
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Send the file to the new API route that uses Unstructured
+        const response = await fetch(`${API_URL}/api/marcos/importar-csv`, {
+            method: 'POST',
+            body: formData
+        });
 
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro desconhecido na importação');
+        }
+
+        // Display the import summary
         resultadoDiv.innerHTML = `
             <div class="mensagem mensagem-sucesso">
-                ✅ ${marcosImportar.length} marcos importados com sucesso!
+                ✅ Importação concluída!<br>
+                ${data.imported} importados, ${data.pending} pendentes (sem coordenadas válidas)
             </div>
         `;
 
         btnImportar.textContent = '✅ Importado!';
 
-        // Atualizar estatísticas
+        // Update statistics and close modal
         setTimeout(() => {
             atualizarEstatisticas();
             fecharModal('modal-importar-planilha');

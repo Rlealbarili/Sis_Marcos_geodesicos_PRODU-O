@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS logs_sistema (
+    id SERIAL PRIMARY KEY,
+    usuario VARCHAR(100),
+    acao VARCHAR(50), -- CRIACAO, EDICAO, EXCLUSAO, IMPORTACAO
+    entidade VARCHAR(50), -- MARCO, PROPRIEDADE, CLIENTE
+    entidade_id INTEGER,
+    detalhes TEXT,
+    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
