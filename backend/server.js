@@ -56,35 +56,42 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ============================================
-// ENDPOINT: Estatísticas
+// ENDPOINT: Estatísticas (Unificado)
 // ============================================
-
 app.get('/api/estatisticas', async (req, res) => {
     try {
+        // Query otimizada com Subselects para trazer tudo de uma vez
         const result = await query(`
             SELECT
-                COUNT(*) as total_marcos,
-                COUNT(CASE WHEN validado = true AND geometry IS NOT NULL THEN 1 END) as marcos_levantados,
-                COUNT(CASE WHEN validado = false OR geometry IS NULL THEN 1 END) as marcos_pendentes,
-                COUNT(CASE WHEN tipo = 'V' THEN 1 END) as tipo_v,
-                COUNT(CASE WHEN tipo = 'M' THEN 1 END) as tipo_m,
-                COUNT(CASE WHEN tipo = 'P' THEN 1 END) as tipo_p,
-                COUNT(CASE WHEN tipo = 'V' AND validado = true THEN 1 END) as tipo_v_validados,
-                COUNT(CASE WHEN tipo = 'M' AND validado = true THEN 1 END) as tipo_m_validados,
-                COUNT(CASE WHEN tipo = 'P' AND validado = true THEN 1 END) as tipo_p_validados,
-                ROUND(
-                    (COUNT(CASE WHEN validado = true AND geometry IS NOT NULL THEN 1 END)::NUMERIC /
-                    NULLIF(COUNT(*)::NUMERIC, 0) * 100), 2
-                ) as percentual_levantados
-            FROM marcos_levantados
+                (SELECT COUNT(*) FROM marcos_levantados) as total_marcos,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = true AND geometry IS NOT NULL) as marcos_levantados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = false OR geometry IS NULL) as marcos_pendentes,
+                (SELECT COUNT(*) FROM propriedades WHERE ativo = true) as total_propriedades,
+                (SELECT COUNT(*) FROM clientes WHERE ativo = true) as total_clientes,
+
+                -- Contagens específicas de Marcos
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V') as tipo_v,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M') as tipo_m,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P') as tipo_p,
+
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' AND validado = true) as tipo_v_validados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M' AND validado = true) as tipo_m_validados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P' AND validado = true) as tipo_p_validados
         `);
 
         const stats = result.rows[0];
 
+        // Cálculo seguro do percentual
+        const total = parseInt(stats.total_marcos) || 0;
+        const levantados = parseInt(stats.marcos_levantados) || 0;
+        const percentual = total > 0 ? (levantados / total * 100).toFixed(2) : 0;
+
         res.json({
-            total_marcos: parseInt(stats.total_marcos),
-            marcos_levantados: parseInt(stats.marcos_levantados),
+            total_marcos: total,
+            marcos_levantados: levantados,
             marcos_pendentes: parseInt(stats.marcos_pendentes),
+            total_propriedades: parseInt(stats.total_propriedades), // Novo campo
+            total_clientes: parseInt(stats.total_clientes),         // Novo campo
             por_tipo: {
                 V: parseInt(stats.tipo_v),
                 M: parseInt(stats.tipo_m),
@@ -95,7 +102,7 @@ app.get('/api/estatisticas', async (req, res) => {
                 M: parseInt(stats.tipo_m_validados),
                 P: parseInt(stats.tipo_p_validados)
             },
-            percentual_levantados: parseFloat(stats.percentual_levantados)
+            percentual_levantados: parseFloat(percentual)
         });
     } catch (error) {
         console.error('Erro em /api/estatisticas:', error);

@@ -298,7 +298,7 @@
                 <div style="display: flex; gap: var(--space-3); align-items: center;">
                     <div class="search-wrapper" style="width: 300px;">
                         <i data-lucide="search" class="search-icon"></i>
-                        <input type="text" class="input input-search" placeholder="Buscar...">
+                        <input type="text" id="global-search-input" class="input" placeholder="Buscar...">
                     </div>
                     <button class="btn btn-primary" onclick="abrirModalNovoMarco()">
                         <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
@@ -893,106 +893,6 @@
 
         // ========================================
         // ESTADO GLOBAL DA APLICAÇÃO
-        // ========================================
-
-        const AppState = {
-            marcos: [],
-            marcosLoaded: false,
-            currentFilter: {
-                tipo: 'todos',
-                status: 'todos',
-                busca: ''
-            }
-        };
-
-        // ========================================
-        // CARREGAR MARCOS DO BACKEND
-        // ========================================
-
-        async function carregarMarcosLista() {
-            try {
-                console.log('🔄 Carregando marcos da API...');
-
-                const response = await fetch(`${window.API_URL}/api/marcos?levantados=true&limite=1000`);
-
-                if (!response.ok) {
-                    throw new Error(`Erro na API: ${response.status}`);
-                }
-
-                const data = await response.json();
-                AppState.marcos = data.data || [];
-                AppState.marcosLoaded = true;
-
-                console.log(`✅ ${AppState.marcos.length} marcos carregados`);
-
-                // Atualizar estatísticas
-                atualizarEstatisticas();
-
-                // Renderizar cards
-                renderizarCardsMarcos();
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar marcos:', error);
-                mostrarErro('Não foi possível carregar os marcos. Verifique se o backend está rodando.');
-            }
-        }
-
-        // Expor função ao escopo global
-        window.carregarMarcosLista = carregarMarcosLista;
-
-        // ========================================
-        // ATUALIZAR ESTATÍSTICAS
-        // ========================================
-
-        function atualizarEstatisticas() {
-            const total = AppState.marcos.length;
-            const levantados = AppState.marcos.filter(m => m.levantado).length;
-
-            // Atualizar cards de estatísticas
-            const statElements = document.querySelectorAll('.stat-value span');
-            if (statElements[0]) statElements[0].textContent = total;
-            if (statElements[1]) statElements[1].textContent = levantados;
-        }
-
-        // ========================================
-        // RENDERIZAR CARDS DE MARCOS
-        // ========================================
-
-        function renderizarCardsMarcos() {
-            const container = document.getElementById('marcos-grid');
-
-            if (!container) {
-                console.warn('Container marcos-grid não encontrado');
-                return;
-            }
-
-            // Filtrar marcos
-            const marcosFiltrados = filtrarMarcos();
-
-            if (marcosFiltrados.length === 0) {
-                container.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: var(--space-16);">
-                        <i data-lucide="search-x" style="width: 64px; height: 64px; color: var(--text-tertiary); margin: 0 auto var(--space-4);"></i>
-                        <p style="color: var(--text-secondary); font-size: var(--text-lg);">Nenhum marco encontrado</p>
-                        <p style="color: var(--text-tertiary); font-size: var(--text-sm); margin-top: var(--space-2);">
-                            Tente ajustar os filtros ou buscar por outro termo
-                        </p>
-                    </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            container.innerHTML = marcosFiltrados.map(marco => criarCardMarco(marco)).join('');
-
-            // Reinicializar ícones Lucide
-            lucide.createIcons();
-
-            // Adicionar event listeners aos cards
-            adicionarEventListenersCards();
-        }
-
-        // ========================================
         // CRIAR HTML DO CARD DE MARCO
         // ========================================
 

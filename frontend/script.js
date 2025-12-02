@@ -129,68 +129,46 @@ function showTab(tabName) {
 
 async function carregarEstatisticas() {
     try {
+        console.log('📊 Atualizando estatísticas unificadas...');
         const response = await fetch(`${API_URL}/api/estatisticas`);
-        const data = await response.json();
 
-        if (response.ok) {
-            // Atualizar os elementos de estatísticas no dashboard
-            if (document.getElementById('stat-marcos')) {
-                document.getElementById('stat-marcos').textContent = formatarNumeroMilhar(data.total_marcos);
-            }
-            if (document.getElementById('stat-levantados')) {
-                document.getElementById('stat-levantados').textContent = formatarNumeroMilhar(data.marcos_levantados);
-            }
-            if (document.getElementById('stat-propriedades')) {
-                // Vamos buscar as estatísticas de propriedades separadamente
-                await carregarEstatisticasPropriedades();
-            }
-            if (document.getElementById('stat-clientes')) {
-                // Vamos buscar as estatísticas de clientes separadamente
-                await carregarEstatisticasClientes();
-            }
-
-            // Atualizar os ícones Lucide após atualizar os dados
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        } else {
-            console.error('Erro na API de estatísticas:', data.error);
+        // Proteção contra falha na API (Item 3 das modificações do relatório)
+        if (!response.ok) {
+            throw new Error(`Erro na API: ${response.status}`);
         }
-    } catch (error) {
-        console.error('Erro ao carregar estatísticas:', error);
-        showToast('Erro ao carregar estatísticas', 'error');
-    }
-}
 
-// Função para carregar estatísticas de propriedades
-async function carregarEstatisticasPropriedades() {
-    try {
-        const response = await fetch(`${API_URL}/api/propriedades?limite=1`);
         const data = await response.json();
 
+        // Atualiza Marcos (Se existirem os elementos)
+        if (document.getElementById('stat-marcos')) {
+            document.getElementById('stat-marcos').textContent = formatarNumeroMilhar(data.total_marcos);
+        }
+        if (document.getElementById('stat-levantados')) {
+            document.getElementById('stat-levantados').textContent = formatarNumeroMilhar(data.marcos_levantados);
+        }
+
+        // Atualiza Propriedades e Clientes DIRETAMENTE (Sem fetch extra)
         if (document.getElementById('stat-propriedades')) {
-            const total = data.total || 0;
-            document.getElementById('stat-propriedades').textContent = formatarNumeroMilhar(total);
+            document.getElementById('stat-propriedades').textContent = formatarNumeroMilhar(data.total_propriedades);
         }
-    } catch (error) {
-        console.error('Erro ao carregar estatísticas de propriedades:', error);
-    }
-}
-
-// Função para carregar estatísticas de clientes
-async function carregarEstatisticasClientes() {
-    try {
-        const response = await fetch(`${API_URL}/api/clientes`);
-        const data = await response.json();
-
         if (document.getElementById('stat-clientes')) {
-            const total = data.total || 0;
-            document.getElementById('stat-clientes').textContent = formatarNumeroMilhar(total);
+            document.getElementById('stat-clientes').textContent = formatarNumeroMilhar(data.total_clientes);
         }
+
+        // Atualizar ícones
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        console.log('✅ Estatísticas atualizadas com sucesso.');
+
     } catch (error) {
-        console.error('Erro ao carregar estatísticas de clientes:', error);
+        console.error('❌ Erro ao carregar estatísticas:', error);
+        // Não limpamos os valores antigos em caso de erro (Persistência visual)
+        // showToast('Erro ao atualizar dashboard', 'error'); // Opcional
     }
 }
+
 
 // Função auxiliar para formatar números com separador de milhar
 function formatarNumeroMilhar(numero) {
@@ -1223,20 +1201,20 @@ function criarControleCamadas() {
 
     // Camadas base (tiles)
     const baseLayers = {
-        "🗺️ Mapa Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        "Mapa Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }),
-        "🛰️ Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri'
         })
     };
 
     // Camadas overlay (dados) - apenas incluir se existirem
     const overlayLayers = {};
-    if (marcosLayer) overlayLayers["📍 Marcos Geodésicos"] = marcosLayer;
-    if (propriedadesRuraisLayer) overlayLayers["🌳 Propriedades Rurais"] = propriedadesRuraisLayer;
-    if (propriedadesUrbanasLayer) overlayLayers["🏢 Propriedades Urbanas"] = propriedadesUrbanasLayer;
-    if (propriedadesLoteamentoLayer) overlayLayers["🏘️ Loteamentos"] = propriedadesLoteamentoLayer;
+    if (marcosLayer) overlayLayers["Marcos Geodésicos"] = marcosLayer;
+    if (propriedadesRuraisLayer) overlayLayers["Propriedades Rurais"] = propriedadesRuraisLayer;
+    if (propriedadesUrbanasLayer) overlayLayers["Propriedades Urbanas"] = propriedadesUrbanasLayer;
+    if (propriedadesLoteamentoLayer) overlayLayers["Loteamentos"] = propriedadesLoteamentoLayer;
 
     // Adicionar controle ao mapa
     layerControl = L.control.layers(baseLayers, overlayLayers, {
@@ -3911,47 +3889,38 @@ function criarMarkerMarco(marco, coresPorTipo) {
  */
 async function atualizarEstatisticas() {
     try {
-        // Buscar estatísticas de marcos
-        const resMarcos = await fetch(`${API_URL}/api/estatisticas`);
-        const dataMarcos = await resMarcos.json();
+        console.log('📊 Buscando estatísticas unificadas...');
+        const response = await fetch(`${API_URL}/api/estatisticas`);
 
-        // A API retorna diretamente os dados (não tem .success ou .data)
-        const totalMarcos = dataMarcos.total_marcos || 0;
-        const marcosLevantados = dataMarcos.marcos_levantados || 0;
+        if (!response.ok) throw new Error(`Erro API: ${response.status}`);
 
-        // Atualizar cards do header (index.html)
-        const statMarcosEl = document.getElementById('stat-marcos');
-        if (statMarcosEl) {
-            statMarcosEl.textContent = totalMarcos.toLocaleString('pt-BR');
-        }
+        const data = await response.json();
+        console.log('✅ Dados recebidos:', data);
 
-        const statLevantadosEl = document.getElementById('stat-levantados');
-        if (statLevantadosEl) {
-            statLevantadosEl.textContent = marcosLevantados.toLocaleString('pt-BR');
-        }
+        // Função auxiliar segura para atualizar texto
+        const updateSafe = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) {
+                // Formata número se for válido, senão mantém o anterior ou põe '0'
+                el.textContent = value !== undefined ? value.toLocaleString('pt-BR') : '0';
+                // Remove classes de loading se existirem
+                el.classList.remove('loading');
+            }
+        };
 
-        // Atualizar estatísticas detalhadas se os elementos existirem (dashboard antigo)
-        if (document.getElementById('stat-total')) {
-            document.getElementById('stat-total').textContent = totalMarcos;
-        }
-        if (document.getElementById('stat-v') && dataMarcos.por_tipo) {
-            document.getElementById('stat-v').textContent = dataMarcos.por_tipo.V || 0;
-        }
-        if (document.getElementById('stat-m') && dataMarcos.por_tipo) {
-            document.getElementById('stat-m').textContent = dataMarcos.por_tipo.M || 0;
-        }
-        if (document.getElementById('stat-p') && dataMarcos.por_tipo) {
-            document.getElementById('stat-p').textContent = dataMarcos.por_tipo.P || 0;
-        }
+        updateSafe('stat-marcos', data.total_marcos);
+        updateSafe('stat-levantados', data.marcos_levantados);
 
-        // Atualizar os ícones Lucide após atualizar os dados
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        // AQUI ESTÁ A CORREÇÃO CRÍTICA:
+        // Usamos data.total_propriedades direto do JSON unificado
+        updateSafe('stat-propriedades', data.total_propriedades);
+        updateSafe('stat-clientes', data.total_clientes);
 
-        console.log('✅ Estatísticas atualizadas - Total:', totalMarcos, 'Levantados:', marcosLevantados);
+        // Atualiza ícones se necessário
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
     } catch (error) {
-        console.error('❌ Erro ao atualizar estatísticas:', error);
+        console.error('❌ Falha ao atualizar estatísticas:', error);
     }
 }
 
@@ -5230,6 +5199,24 @@ window.addEventListener('load', () => {
             }
         });
     });
-    
+
     console.log('✅ Event listeners do sidebar configurados!');
+});
+
+// Adicionando listener para o campo de busca global
+document.getElementById('global-search-input')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        const termo = this.value;
+        if (termo) {
+            document.querySelector('.tab-button[data-tab="marcos"]').click();
+            setTimeout(() => {
+                const filtro = document.getElementById('busca-marcos');
+                if (filtro) {
+                    filtro.value = termo;
+                    // Dispara o evento de input ou chama a função de busca se existir
+                    buscarMarcos();
+                }
+            }, 200);
+        }
+    }
 });
