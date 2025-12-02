@@ -998,9 +998,20 @@ select.input {
 .preview-table-container {
     background-color: var(--bg-primary);
     border: var(--border-width) solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    margin-bottom: var(--space-6);
+}
+
+/* ========================================
+   LABEL FOR MARCO CODES (TOOLTIPS)
+   ======================================== */
+
+.lbl-marco {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px black;
+    font-size: 11px;
 }
 
 .preview-table-header {

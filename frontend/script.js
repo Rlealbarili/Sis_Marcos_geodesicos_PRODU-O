@@ -3562,16 +3562,43 @@ function atualizarMarcadores() {
 
                 } else {
                     // É um MARCO INDIVIDUAL
-                    const iconColor = props.tipo === 'V' ? 'red' : props.tipo === 'M' ? 'blue' : 'green';
+                    let iconColor;
+                    switch(props.tipo) {
+                        case 'V': // Vértice
+                            iconColor = '#e74c3c'; // vermelho
+                            break;
+                        case 'M': // Marco
+                            iconColor = '#3498db'; // azul
+                            break;
+                        case 'P': // Ponto auxiliar
+                        default:
+                            iconColor = '#2ecc71'; // verde
+                            break;
+                    }
 
                     const marker = L.circleMarker([lat, lng], {
-                        radius: 8,
+                        radius: 6, // aumentado de 8 para 6 (menor para evitar sobreposição visual)
                         fillColor: iconColor,
                         color: 'white',
                         weight: 2,
                         opacity: 1,
                         fillOpacity: 0.8
                     });
+
+                    // Tooltip com o código do marco - exibido permanentemente apenas em zoom alto
+                    if (map.getZoom() > 16) {
+                        marker.bindTooltip(props.codigo, {
+                            permanent: true,
+                            direction: 'top',
+                            className: 'lbl-marco'
+                        });
+                    } else {
+                        marker.bindTooltip(props.codigo, {
+                            permanent: false,
+                            direction: 'top',
+                            className: 'lbl-marco'
+                        });
+                    }
 
                     // Popup
                     marker.bindPopup(`
@@ -3599,6 +3626,32 @@ function atualizarMarcadores() {
         });
 
         console.log(`✅ Adicionados: ${clustersAdicionados} clusters + ${marcosAdicionados} marcos`);
+
+        // Configuração de tooltips baseada no zoom
+        if (!window.marcoTooltipHandler) {
+            window.marcoTooltipHandler = function() {
+                const currentZoom = map.getZoom();
+                window.marcadoresLayer.eachLayer(layer => {
+                    if (layer.getTooltip && !layer.options.cluster) { // Apenas marcos individuais, não clusters
+                        if (currentZoom > 16) {
+                            // Verifica se o tooltip não está aberto antes de abrir (evitar redundância)
+                            if (!layer.isTooltipOpen()) {
+                                layer.openTooltip();
+                            }
+                        } else {
+                            // Fecha o tooltip se o zoom estiver baixo
+                            if (layer.isTooltipOpen()) {
+                                layer.closeTooltip();
+                            }
+                        }
+                    }
+                });
+            };
+
+            // Adiciona o listener de zoom, se ainda não existir
+            map.on('zoomend', window.marcoTooltipHandler);
+        }
+
         console.log(`🎉 MARCADORES ATUALIZADOS COM SUCESSO!`);
 
     } catch (error) {
@@ -4961,13 +5014,24 @@ async function carregarPropriedades() {
         propriedadesLayer = L.geoJSON(geojson, {
             style: function(feature) {
                 const tipo = feature.properties.tipo;
-                return {
+
+                let style = {
                     color: getTipoColor(tipo),
-                    weight: 3,
+                    weight: 2,  // Espessura 2 para ambas as linhas
                     opacity: 0.8,
                     fillColor: getTipoColor(tipo),
-                    fillOpacity: 0.2
+                    fillOpacity: 0.15  // Transparência de 15% para que o satélite seja visível
                 };
+
+                // Aplicar estilo tracejado para propriedades rurais
+                if (tipo === 'RURAL') {
+                    style.dashArray = '5, 10';  // Tracejado para Rural
+                } else if (tipo === 'URBANA') {
+                    // Linha contínua para Urbana (não precisa definir dashArray)
+                    // A cor já é definida por getTipoColor
+                }
+
+                return style;
             },
             onEachFeature: function(feature, layer) {
                 const props = feature.properties;
@@ -4991,7 +5055,10 @@ async function carregarPropriedades() {
 
                 // Highlight ao passar mouse
                 layer.on('mouseover', function() {
-                    this.setStyle({ weight: 5, fillOpacity: 0.4 });
+                    this.setStyle({
+                        weight: 4,  // Aumentar espessura da borda para 4
+                        fillOpacity: 0.4  // Aumentar opacidade para 0.4
+                    });
                 });
 
                 layer.on('mouseout', function() {
