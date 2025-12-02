@@ -375,6 +375,44 @@ app.get('/api/marcos/exportar', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINT: Exportar DXF
+// ============================================
+app.get('/api/marcos/exportar-dxf', async (req, res) => {
+    try {
+        console.log('📐 Iniciando exportação DXF...');
+
+        // Buscar apenas marcos validados com coordenadas
+        const result = await query(`
+            SELECT codigo, coordenada_e, coordenada_n, altitude
+            FROM marcos_levantados
+            WHERE validado = true AND geometry IS NOT NULL
+            ORDER BY codigo
+        `);
+
+        if (result.rows.length === 0) {
+            return res.status(404).send('Nenhum marco validado para exportar.');
+        }
+
+        // Importar o gerador DXF
+        const { gerarDXF } = require('./utils/dxf-generator');
+
+        // Gerar conteúdo do arquivo
+        const dxfContent = gerarDXF(result.rows);
+
+        // Configurar headers para download
+        res.setHeader('Content-Type', 'application/dxf');
+        res.setHeader('Content-Disposition', `attachment; filename=marcos_inventario_${Date.now()}.dxf`);
+
+        res.send(dxfContent);
+        console.log(`✅ DXF gerado com ${result.rows.length} marcos.`);
+
+    } catch (error) {
+        console.error('❌ Erro ao exportar DXF:', error);
+        res.status(500).json({ error: 'Erro interno na geração do DXF' });
+    }
+});
+
+// ============================================
 // ENDPOINT: Buscar Marco por Código
 // ============================================
 

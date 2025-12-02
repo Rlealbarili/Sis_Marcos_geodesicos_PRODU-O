@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-12-02T14:11:52.302Z",
+  "base_url": "http://localhost:3002",
+  "results": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "tests": [
+      {
+        "name": "Smoke Test (Inicialização)",
+        "pass": true,
+        "message": "Servidor respondendo corretamente, página inicial carregada"
+      },
+      {
+        "name": "Gestão de Clientes (Tarefa 05)",
+        "pass": true,
+        "message": "API de clientes funcionando, retornou 22 clientes"
+      },
+      {
+        "name": "Histórico e Auditoria (Tarefa 06)",
+        "pass": true,
+        "message": "API de histórico funcionando, retornou 0 registros"
+      },
+      {
+        "name": "Exportação DXF (Tarefa 02)",
+        "pass": false,
+        "message": "Exportação DXF retornou status 404"
+      }
+    ]
+  }
+}
