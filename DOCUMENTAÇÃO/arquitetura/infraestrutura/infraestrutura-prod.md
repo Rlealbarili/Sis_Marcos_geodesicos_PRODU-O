@@ -74,6 +74,14 @@ As colunas foram ajustadas para acomodar dados de diferentes tamanhos:
 - `matricula`, `municipio`, `comarca`: Ajustados para até 500 caracteres
 - `codigo`, `metodo`, `fonte`, `lote`: Ajustados para até 200-500 caracteres
 
+## Estatísticas e Consultas
+
+O sistema inclui consultas otimizadas para geração de estatísticas em tempo real:
+- Endpoint `/api/estatisticas` retorna contagens agregadas de marcos, propriedades e clientes
+- Utiliza subqueries otimizadas para obter informações de múltiplas tabelas em uma única consulta
+- Inclui contagens de marcos totais, levantados, pendentes e por tipo
+- Inclui contagens de propriedades e clientes ativos
+
 ## Rede e Comunicação
 
 Todos os serviços estão conectados à uma rede Docker privada chamada `rede_inventario`, que garante comunicação segura entre os containers e isola o ambiente de outros serviços.

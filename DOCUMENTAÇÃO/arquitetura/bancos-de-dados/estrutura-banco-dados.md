@@ -120,6 +120,21 @@ Armazena registros de auditoria de todas as operações realizadas no sistema.
 
 Criada para suportar o sistema de histórico de auditoria do inventário de marcos geodésicos.
 
+### 3.6. Consultas de Estatísticas
+O sistema inclui endpoints e consultas otimizadas para gerar estatísticas sobre marcos geodésicos, propriedades e clientes.
+
+**Endpoint `/api/estatisticas`:**
+- Retorna contagens agregadas de marcos, propriedades e clientes
+- Utiliza subqueries otimizadas para obter informações de múltiplas tabelas em uma única consulta
+- Inclui:
+  - Total de marcos (`SELECT COUNT(*) FROM marcos_levantados`)
+  - Marcos levantados (`SELECT COUNT(*) FROM marcos_levantados WHERE validado = true AND geometry IS NOT NULL`)
+  - Marcos pendentes (`SELECT COUNT(*) FROM marcos_levantados WHERE validado = false OR geometry IS NULL`)
+  - Total de propriedades ativas (`SELECT COUNT(*) FROM propriedades WHERE ativo = true`)
+  - Total de clientes ativos (`SELECT COUNT(*) FROM clientes WHERE ativo = true`)
+  - Contagens por tipo de marco (`SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V'`)
+  - Contagens por tipo de marco validados (`SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' AND validado = true`)
+
 ## 4. Visões de Banco de Dados (Views)
 
 ### 4.1. `vw_clientes_completa` (View de Clientes Completa)

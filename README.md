@@ -14,6 +14,8 @@ Este é o sistema de inventário de marcos geodésicos, propriedades e clientes.
 - **Dashboard Executivo**: Painel com estatísticas de inventário
 - **Histórico de Auditoria**: Registro de todas as operações do sistema
 - **Tema Escuro/Claro**: Persistência e aplicação de preferência de tema
+- **Busca Global**: Campo de busca acessível em todas as páginas com suporte a tecla Enter
+- **Estatísticas em Tempo Real**: Cards atualizados automaticamente a cada 30 segundos com dados de marcos, propriedades e clientes
 
 ## Infraestrutura de Produção
 
@@ -42,7 +44,9 @@ docker-compose -f docker-compose.prod.yml up -d
 ### Dashboard de Inventário
 - Remoção de componentes de análise fundiária (sobreposições, confrontantes, risco)
 - Atualização para focar apenas em métricas de inventário
-- KPIs restantes: Total de Propriedades, Área Total, Marcos Geodésicos, Total de Clientes
+- KPIs atualizados: Total de Marcos, Marcos Levantados, Propriedades e Clientes
+- Correção do problema de valores zerando nos cards de estatísticas
+- Atualização automática dos dados a cada 30 segundos
 
 ### Histórico de Auditoria
 - Registro automático de todas as operações do sistema
@@ -57,6 +61,11 @@ docker-compose -f docker-compose.prod.yml up -d
 - Persistência da preferência de tema via localStorage
 - Aplicação imediata na inicialização da página
 - Interface otimizada para ambos os temas
+
+### Busca Global
+- Campo de busca acessível na página principal com ID `global-search-input`
+- Listener implementado para processar buscas via tecla Enter
+- Redireciona automaticamente para a aba de marcos com o termo pesquisado
 
 ## Migração de Dados
 

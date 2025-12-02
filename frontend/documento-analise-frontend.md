@@ -67,5 +67,9 @@
 - **Exportação CAD (DXF)**: Nova funcionalidade para exportação de marcos em formato DXF
 - **Histórico de Auditoria**: Sistema de registro e visualização de todas as operações
 - **Gestão de Clientes**: Melhorias na busca e filtragem de clientes
+- **Atualização da função atualizarEstatisticas()**: Atualizada para usar uma abordagem unificada de dados com função auxiliar `updateSafe()` para atualizar os elementos de forma segura
+- **Remoção de funções redundantes**: Eliminadas funções obsoletas como `carregarEstatisticasPropriedades()` e `carregarEstatisticasClientes()` que causavam race conditions
+- **Correção do problema de cards zerando**: Resolvido o problema de valores zerando nos cards de estatísticas devido a chamadas concorrentes à API
+- **Implementação de busca global**: Adicionado campo de busca com ID `global-search-input` e listener para busca por tecla Enter
 
 O frontend é bem estruturado com um design system moderno inspirado no X (Twitter), funcionalidades completas para georreferenciamento e inventário de marcos, e uma boa separação de responsabilidades entre os diferentes componentes.

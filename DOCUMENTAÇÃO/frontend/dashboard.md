@@ -1,8 +1,8 @@
-# Documentação do Dashboard de Inventário de Marcos Geodésicos
+# Documentação do Dashboard de Estatísticas de Marcos Geodésicos
 
 ## Visão Geral
 
-O Dashboard Executivo do Sistema de Inventário de Marcos Geodésicos é uma interface web que fornece estatísticas e visualizações de dados para tomada de decisão. O dashboard foi atualizado para focar exclusivamente nas métricas de inventário, removendo componentes relacionados à análise fundiária.
+O Dashboard de Estatísticas do Sistema de Marcos Geodésicos é uma interface web que fornece estatísticas em tempo real sobre o inventário de marcos geodésicos, propriedades e clientes. Os dados são atualizados automaticamente a cada 30 segundos.
 
 ## Funcionalidades Atuais
 
@@ -10,61 +10,45 @@ O Dashboard Executivo do Sistema de Inventário de Marcos Geodésicos é uma int
 
 O dashboard apresenta os seguintes KPIs principais:
 
-1. **Total de Propriedades**
+1. **Total de Marcos**
+   - Exibe o número total de marcos registrados no sistema
+   - Atualizado automaticamente com os dados mais recentes
+
+2. **Marcos Levantados**
+   - Exibe o número total de marcos que já foram levantados
+   - Calculado a partir dos marcos com coordenadas válidas e validação confirmada
+
+3. **Propriedades**
    - Exibe o número total de propriedades cadastradas
-   - Subtítulo mostra a divisão entre propriedades rurais e urbanas
+   - Inclui todas as propriedades ativas no sistema
 
-2. **Área Total Gerenciada**
-   - Exibe a área total em hectares (ha)
-   - Subtítulo mostra a conversão para quilômetros quadrados (km²)
-
-3. **Marcos Geodésicos**
-   - Exibe o número total de marcos registrados
-   - Subtítulo mostra quantos marcos já foram levantados
-
-4. **Total de Clientes**
+4. **Clientes**
    - Exibe o número total de clientes cadastrados
-   - Subtítulo mostra o número de municípios representados
+   - Inclui todos os clientes ativos no sistema
 
-### Gráficos
+### Atualização de Dados
 
-O dashboard apresenta os seguintes gráficos:
+- Os dados são atualizados automaticamente a cada 30 segundos
+- Os dados são obtidos através da API `/api/estatisticas` no backend
+- A função `atualizarEstatisticas()` é responsável por buscar e atualizar os dados na interface
 
-1. **Distribuição por Tipo**
-   - Gráfico do tipo rosca (doughnut)
-   - Mostra a distribuição entre propriedades rurais e urbanas
+## Funções Atualizadas
 
-2. **Propriedades por Estado**
-   - Gráfico de barras
-   - Mostra o número de propriedades por estado
+### Função `atualizarEstatisticas()`
 
-3. **Atividades (30 dias)**
-   - Gráfico de linha
-   - Mostra a atividade do sistema nos últimos 30 dias
-
-## Funcionalidades Removidas
-
-As seguintes funcionalidades/análises foram removidas do dashboard como parte da refatoração para foco exclusivo em inventário:
-
-- **Análise de Riscos**: Gráfico de análise de riscos (sobrepeso, médio, alto)
-- **Sobreposições Detectadas**: KPI que mostrava o número de sobreposições detectadas
-- **Confrontantes Identificados**: KPI que mostrava o número de confrontantes identificados
-- **Risco Alto/Crítico**: KPI que indicava risco alto no levantamento
+- Foi atualizada para usar uma abordagem unificada de dados
+- Agora utiliza uma função auxiliar `updateSafe()` para atualizar os elementos de forma segura
+- Implementa tratamento de erros que não limpa os valores existentes quando a API falha
+- Removeu chamadas redundantes e race conditions entre diferentes funções de atualização
 
 ## Layout e Design
 
-- O layout utiliza uma grade CSS flexível que se adapta automaticamente ao tamanho da tela
-- Os KPIs são exibidos em um grid de cartões responsivos
-- Os gráficos são exibidos em cartões com gráficos escaláveis
-- Cores padronizadas para cada tipo de informação (azul para propriedades, verde para marcos, etc.)
-
-## Atualização de Dados
-
-- O dashboard atualiza automaticamente os dados a cada 5 minutos
-- Os dados são obtidos através da API `/api/dashboard/estatisticas`
-- A última atualização é exibida no canto superior direito do dashboard
+- O layout utiliza uma grade CSS responsiva para exibição dos cards de estatísticas
+- Os KPIs são exibidos em cartões com ícones representativos
+- Design limpo e moderno com foco na legibilidade dos dados
 
 ## Acesso
 
 - O dashboard é acessado via `/dashboard.html` no frontend
 - Requer conexão com o backend para obter os dados atualizados
+- Integração com o sistema principal por meio da API definida em `window.API_URL`
