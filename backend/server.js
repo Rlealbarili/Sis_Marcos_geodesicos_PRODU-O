@@ -480,6 +480,10 @@ app.get('/api/propriedades/geojson', async (req, res) => {
 const propriedadesRoutes = require('./routes/propriedades');
 app.use('/api/propriedades', propriedadesRoutes);
 
+// Rota de importação de CSV via Unstructured API
+const { importarCsv } = require('./routes/upload-csv');
+app.post('/api/marcos/importar-csv', importarCsv);
+
 // ============================================
 // ENDPOINT: Histórico de Atividades
 // ============================================

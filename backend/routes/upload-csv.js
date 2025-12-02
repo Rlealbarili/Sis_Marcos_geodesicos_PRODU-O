@@ -7,8 +7,6 @@ const path = require('path');
 const { Client } = require('pg');
 const { parseCoordinatePair } = require('../utils/coordinate-parser');
 
-const router = express.Router();
-
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -24,7 +22,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -41,17 +39,17 @@ function parseHtmlTable(htmlString) {
   // This is a basic implementation - for more complex HTML, a proper HTML parser would be needed
   const rows = [];
   const tableMatch = htmlString.match(/<table\b[^>]*>([\s\S]*?)<\/table>/i);
-  
+
   if (tableMatch) {
     const tableContent = tableMatch[1];
     // Find all rows
     const rowMatches = tableContent.match(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi);
-    
+
     if (rowMatches) {
       for (const rowMatch of rowMatches) {
         const cellMatches = rowMatch[1].match(/<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi);
         const row = [];
-        
+
         if (cellMatches) {
           for (const cellMatch of cellMatches) {
             // Extract text content from the cell
@@ -59,12 +57,12 @@ function parseHtmlTable(htmlString) {
             row.push(cellText);
           }
         }
-        
+
         rows.push(row);
       }
     }
   }
-  
+
   return rows;
 }
 
@@ -109,7 +107,7 @@ function extractTableData(rows) {
     const hasCodigo = row.some(cell => ['codigo', 'código', 'cod', 'id'].includes(cell));
     const hasE = row.some(cell => ['e', 'easting', 'x'].includes(cell));
     const hasN = row.some(cell => ['n', 'northing', 'y'].includes(cell));
-    
+
     if (hasCodigo && (hasE || hasN)) {
       headerRowIndex = i;
       break;
@@ -140,22 +138,22 @@ function extractTableData(rows) {
   return { headers, data };
 }
 
-// Main route for importing CSV via Unstructured API
-router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, res) => {
+// Função principal para manipular a importação de CSV
+async function handleCsvImport(req, res, next) {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     }
 
     const filePath = req.file.path;
-    const unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8000';
+    const unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8001'; // Use a porta do seu container Unstructured
 
     try {
       // Create form data to send the file to Unstructured API
       const form = new FormData();
       form.append('files', fs.createReadStream(filePath));
       form.append('strategy', 'hi_res'); // Use hi_res for better accuracy with tables
-      
+
       // Send the file to Unstructured API
       const unstructuredResponse = await axios.post(
         `${unstructuredApiUrl}/general/v0/general`,
@@ -164,7 +162,7 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
           headers: {
             ...form.getHeaders(),
           },
-          timeout: 30000 // 30 second timeout
+          timeout: 60000 // 60 second timeout for larger files
         }
       );
 
@@ -206,12 +204,12 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
       // Connect to database
       const client = new Client({
         user: process.env.DB_USER || 'seu_usuario',
-        host: process.env.DB_HOST || 'localhost',
+        host: process.env.DB_HOST || 'db_inventario_prod',
         database: process.env.DB_NAME || 'nome_do_banco',
         password: process.env.DB_PASS || 'sua_senha',
-        port: process.env.DB_PORT || 5432,
+        port: process.env.DB_PORT || 5434,  // Use a porta do seu container PostgreSQL
       });
-      
+
       await client.connect();
 
       let importedCount = 0;
@@ -220,21 +218,21 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
       // Process each row and insert into database
       for (const row of tableData) {
         const { codigo, e, n, h, descricao } = row;
-        
+
         if (!codigo) {
           continue; // Skip rows without a code
         }
 
         // Parse coordinates
         const coordResult = parseCoordinatePair(e, n);
-        
+
         // Prepare the database insert/update query
         let query, queryParams;
         if (coordResult.valid) {
           // If coordinates are valid, create geometry and set status as VALIDADO
           query = `
             INSERT INTO marcos_levantados (codigo, descricao, h, n, e, geometry, status)
-            VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($4, $5), 31982), 'VALIDADO')
+            VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($5, $4), 31982), 'VALIDADO')
             ON CONFLICT (codigo) DO UPDATE SET
               descricao = EXCLUDED.descricao,
               h = EXCLUDED.h,
@@ -258,7 +256,7 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
           `;
           queryParams = [codigo, descricao || '', h || null, n || null, e || null];
         }
-        
+
         try {
           await client.query(query, queryParams);
           if (coordResult.valid) {
@@ -285,12 +283,12 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
 
     } catch (unstructuredError) {
       console.error('Error communicating with Unstructured API:', unstructuredError);
-      
+
       // Clean up uploaded file even if Unstructured API call fails
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
-      
+
       res.status(500).json({
         error: 'Erro ao processar o arquivo com a API Unstructured',
         details: unstructuredError.message
@@ -298,17 +296,30 @@ router.post('/api/marcos/importar-csv', upload.single('csvFile'), async (req, re
     }
   } catch (error) {
     console.error('Error in CSV import route:', error);
-    
+
     // Clean up uploaded file in case of error
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
+
     res.status(500).json({
       error: 'Erro interno ao processar o upload',
       details: error.message
     });
   }
-});
+}
 
-module.exports = router;
+// Exportar a função específica para manipular a rota
+module.exports = {
+  importarCsv: (req, res, next) => {
+    // Middleware de upload
+    const uploadMiddleware = upload.single('csvFile');
+    uploadMiddleware(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: 'Erro no upload do arquivo' });
+      }
+      // Chamar a função de tratamento principal
+      handleCsvImport(req, res, next);
+    });
+  }
+};

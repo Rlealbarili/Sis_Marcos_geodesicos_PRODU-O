@@ -1262,7 +1262,7 @@
             }
 
             try {
-                const response = await fetch(`${window.API_URL}/api/marcos', {
+                const response = await fetch(`${window.API_URL}/api/marcos`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1314,7 +1314,7 @@
             formData.append('nome_projeto', nomeProjeto);
 
             try {
-                const response = await fetch(`${window.API_URL}/api/salvar-memorial-completo', {
+                const response = await fetch(`${window.API_URL}/api/salvar-memorial-completo`, {
                     method: 'POST',
                     body: formData
                 });
@@ -1349,7 +1349,7 @@
             console.log('🏢 Abrindo modal de Nova Propriedade');
 
             // Carregar clientes no select
-            fetch(`${window.API_URL}/api/clientes')
+            fetch(`${window.API_URL}/api/clientes`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById('prop-cliente');
@@ -1364,13 +1364,13 @@
                 });
 
             // Mostrar modal
-            document.getElementById('modalNovaPropriedade').style.display = 'flex';
+            document.getElementById('modal-nova-propriedade').style.display = 'flex';
             lucide.createIcons();
         }
 
         function fecharModalNovaPropriedade() {
-            document.getElementById('modalNovaPropriedade').style.display = 'none';
-            document.getElementById('formNovaPropriedade').reset();
+            document.getElementById('modal-nova-propriedade').style.display = 'none';
+            document.getElementById('form-nova-propriedade').reset();
         }
 
         async function salvarNovaPropriedade() {
@@ -1388,7 +1388,7 @@
             }
 
             try {
-                const response = await fetch(`${window.API_URL}/api/propriedades', {
+                const response = await fetch(`${window.API_URL}/api/propriedades`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1441,7 +1441,7 @@
             }
 
             try {
-                const response = await fetch(`${window.API_URL}/api/clientes', {
+                const response = await fetch(`${window.API_URL}/api/clientes`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2842,7 +2842,7 @@
         lucide.createIcons();
 
         try {
-            const response = await fetch(`${window.API_URL}/api/marcos', {
+            const response = await fetch(`${window.API_URL}/api/marcos`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3318,7 +3318,7 @@
             const formData = new FormData();
             formData.append('memorial', arquivo);
 
-            const response = await fetch(`${window.API_URL}/api/memorial/upload', {
+            const response = await fetch(`${window.API_URL}/api/memorial/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -3561,7 +3561,7 @@
 
             mostrarToast('info', 'Salvando', 'Salvando memorial no banco de dados...');
 
-            const response = await fetch(`${window.API_URL}/api/salvar-memorial-completo', {
+            const response = await fetch(`${window.API_URL}/api/salvar-memorial-completo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -4174,7 +4174,7 @@
     // ========================================
 
     async function importarMarco(marco) {
-        const response = await fetch(`${window.API_URL}/api/marcos', {
+        const response = await fetch(`${window.API_URL}/api/marcos`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -4672,7 +4672,7 @@
         lucide.createIcons();
 
         try {
-            const response = await fetch(`${window.API_URL}/api/propriedades', {
+            const response = await fetch(`${window.API_URL}/api/propriedades`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(propriedade)
@@ -5306,7 +5306,7 @@
             const radioFisica = form.querySelector('input[name="tipo_pessoa"][value="fisica"]');
             if (radioFisica) radioFisica.checked = true;
         }
-        abrirModal('modal-novo-cliente');
+        abrirModal('modalNovoCliente');
     }
 
     async function salvarNovoCliente(event) {
@@ -5328,7 +5328,7 @@
         try {
             console.log('💾 Criando novo cliente:', cliente);
 
-            const response = await fetch(`${window.API_URL}/api/clientes', {
+            const response = await fetch(`${window.API_URL}/api/clientes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(cliente)

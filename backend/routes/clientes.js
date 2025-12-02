@@ -10,7 +10,20 @@ router.get('/', async (req, res) => {
     try {
         const { tipo_pessoa, ativo, busca } = req.query;
 
-        let sqlQuery = 'SELECT * FROM vw_clientes_completa WHERE 1=1';
+        let sqlQuery = `SELECT
+            id,
+            nome,
+            tipo_pessoa,
+            cpf_cnpj,
+            email,
+            telefone,
+            endereco,
+            observacoes,
+            ativo,
+            created_at,
+            updated_at
+            FROM clientes
+            WHERE 1=1`;
         const params = [];
         let paramIndex = 1;
 
@@ -62,7 +75,7 @@ router.get('/:id', async (req, res) => {
         const { id } = req.params;
 
         const result = await query(
-            'SELECT * FROM vw_clientes_completa WHERE id = $1',
+            'SELECT * FROM clientes WHERE id = $1',
             [id]
         );
 

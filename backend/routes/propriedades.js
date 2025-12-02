@@ -10,7 +10,25 @@ router.get('/', async (req, res) => {
     try {
         const { tipo, municipio, cliente_id, ativo, busca } = req.query;
 
-        let sqlQuery = 'SELECT * FROM vw_propriedades_completa WHERE 1=1';
+        let sqlQuery = `SELECT
+            p.id,
+            p.nome_propriedade,
+            p.matricula,
+            p.tipo,
+            p.municipio,
+            p.uf,
+            p.area_m2,
+            p.perimetro_m,
+            p.geometry,
+            p.observacoes,
+            p.created_at,
+            p.updated_at,
+            c.id as cliente_id,
+            c.nome as cliente_nome,
+            c.cpf_cnpj as cliente_cpf_cnpj
+            FROM propriedades p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE 1=1`;
         const params = [];
         let paramIndex = 1;
 
@@ -75,11 +93,13 @@ router.get('/:id', async (req, res) => {
 
         const result = await query(
             `SELECT
-                vw.*,
-                ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geojson
-            FROM vw_propriedades_completa vw
-            LEFT JOIN propriedades p ON vw.id = p.id
-            WHERE vw.id = $1`,
+                p.*,
+                ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geojson,
+                c.nome as cliente_nome,
+                c.cpf_cnpj as cliente_cpf_cnpj
+            FROM propriedades p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            WHERE p.id = $1`,
             [id]
         );
 
