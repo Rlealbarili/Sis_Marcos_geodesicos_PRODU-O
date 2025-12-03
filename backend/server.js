@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs');
 require('dotenv').config({ path: './backend/.env', override: true });
 const { query, transaction, healthCheck, pool } = require('./database/postgres-connection');
 const ReportGenerator = require('./report-generator');
@@ -783,7 +784,14 @@ app.post('/api/memorial/upload', upload.single('memorial'), async (req, res) => 
         });
 
         // Obter URL da API Unstructured do ambiente (ou usar padrão)
-        const unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8000/general/v0/general';
+        let unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8000/general/v0/general';
+
+        // PATCH DE CORREÇÃO (Petrovich): Garantir endpoint correto se vier apenas o host do Docker
+        if (!unstructuredApiUrl.includes('/general/v0/general')) {
+            // Remove barra final se existir e adiciona o endpoint correto
+            unstructuredApiUrl = unstructuredApiUrl.replace(/\/$/, '') + '/general/v0/general';
+            console.log('🔧 URL da API Unstructured corrigida automaticamente para:', unstructuredApiUrl);
+        }
 
         let unstructuredResponse;
         try {

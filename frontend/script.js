@@ -3430,199 +3430,104 @@ function atualizarMarcadores() {
     console.log('🔄 ATUALIZANDO MARCADORES NO MAPA...');
 
     try {
-        // Verificações básicas
-        if (!map) {
-            console.error('❌ Mapa não existe!');
+        if (!map || !supercluster || !window.marcosFeatures || window.marcosFeatures.length === 0) {
             return;
         }
 
-        if (typeof supercluster === 'undefined' || !supercluster) {
-            console.error('❌ Supercluster não existe!');
-            return;
-        }
-
-        if (!window.marcosFeatures || window.marcosFeatures.length === 0) {
-            console.warn('⚠️ Nenhum marco carregado ainda');
-            return;
-        }
-
-        console.log('✅ Mapa e Supercluster OK');
-
-        // Pegar bounds do mapa
         const bounds = map.getBounds();
-        const bbox = [
-            bounds.getWest(),
-            bounds.getSouth(),
-            bounds.getEast(),
-            bounds.getNorth()
-        ];
-
+        const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
         const zoom = Math.floor(map.getZoom());
 
-        console.log(`📏 Zoom: ${zoom}`);
-        console.log(`📦 BBox: [${bbox.map(n => n.toFixed(2)).join(', ')}]`);
+        let clusters = supercluster.getClusters(bbox, zoom);
 
-        // Pegar clusters/pontos
-        let clusters;
-        try {
-            clusters = supercluster.getClusters(bbox, zoom);
-            console.log(`✅ ${clusters.length} clusters/pontos retornados`);
-        } catch (error) {
-            console.error('❌ Erro ao chamar getClusters:', error);
-            return;
-        }
-
-        // Criar ou limpar layer de marcadores
         if (!window.marcadoresLayer) {
-            console.log('🆕 Criando layer de marcadores...');
             window.marcadoresLayer = L.layerGroup().addTo(map);
         } else {
-            console.log('🧹 Limpando marcadores antigos...');
             window.marcadoresLayer.clearLayers();
         }
 
-        // Adicionar marcadores
-        let clustersAdicionados = 0;
-        let marcosAdicionados = 0;
+        clusters.forEach((cluster) => {
+            const [lng, lat] = cluster.geometry.coordinates;
+            const props = cluster.properties;
 
-        clusters.forEach((cluster, index) => {
-            try {
-                const [lng, lat] = cluster.geometry.coordinates;
-                const props = cluster.properties;
+            if (props.cluster) {
+                const size = props.point_count < 10 ? 30 : props.point_count < 100 ? 40 : 50;
+                const color = props.point_count < 10 ? '#51bbd6' : props.point_count < 100 ? '#f1f075' : '#f28cb1';
 
-                if (props.cluster) {
-                    // É um CLUSTER (vários marcos agrupados)
-                    const size = props.point_count < 10 ? 30 : props.point_count < 100 ? 40 : 50;
-                    const color = props.point_count < 10 ? '#51bbd6' : props.point_count < 100 ? '#f1f075' : '#f28cb1';
+                const marker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        html: `<div style="background: ${color}; color: white; border-radius: 50%; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${props.point_count}</div>`,
+                        iconSize: [size, size]
+                    })
+                });
 
-                    const marker = L.marker([lat, lng], {
-                        icon: L.divIcon({
-                            html: `<div style="
-                                background: ${color};
-                                color: white;
-                                border-radius: 50%;
-                                width: ${size}px;
-                                height: ${size}px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-weight: bold;
-                                font-size: 14px;
-                                border: 3px solid white;
-                                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-                            ">${props.point_count}</div>`,
-                            className: '',
-                            iconSize: [size, size]
-                        })
-                    });
+                marker.on('click', () => {
+                    const expansionZoom = supercluster.getClusterExpansionZoom(cluster.id);
+                    map.setView([lat, lng], expansionZoom + 1, { animate: true });
+                });
 
-                    // Ao clicar, dar zoom
-                    marker.on('click', () => {
-                        const expansionZoom = supercluster.getClusterExpansionZoom(cluster.id);
-                        map.setView([lat, lng], expansionZoom + 1, { animate: true });
-                    });
+                window.marcadoresLayer.addLayer(marker);
+            } else {
+                // Marco Individual
+                let iconColor = props.tipo === 'M' ? '#3498db' : (props.tipo === 'P' ? '#2ecc71' : '#e74c3c');
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 6,
+                    fillColor: iconColor,
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
 
-                    window.marcadoresLayer.addLayer(marker);
-                    clustersAdicionados++;
+                // Tooltip Permanente com verificação de segurança
+                marker.bindTooltip(props.codigo, {
+                    permanent: map.getZoom() > 16,
+                    direction: 'top',
+                    className: 'lbl-marco'
+                });
 
-                } else {
-                    // É um MARCO INDIVIDUAL
-                    let iconColor;
-                    switch(props.tipo) {
-                        case 'V': // Vértice
-                            iconColor = '#e74c3c'; // vermelho
-                            break;
-                        case 'M': // Marco
-                            iconColor = '#3498db'; // azul
-                            break;
-                        case 'P': // Ponto auxiliar
-                        default:
-                            iconColor = '#2ecc71'; // verde
-                            break;
-                    }
+                marker.bindPopup(`
+                    <div style="font-family: Arial; min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">${props.codigo}</h3>
+                        <table style="width: 100%; font-size: 13px;">
+                            <tr><td><strong>Tipo:</strong></td><td>${props.tipo}</td></tr>
+                            <tr><td><strong>Município:</strong></td><td>${props.municipio || 'N/A'}</td></tr>
+                            <tr><td><strong>Status:</strong></td><td>${props.status || 'LEVANTADO'}</td></tr>
+                        </table>
+                    </div>
+                `);
 
-                    const marker = L.circleMarker([lat, lng], {
-                        radius: 6, // aumentado de 8 para 6 (menor para evitar sobreposição visual)
-                        fillColor: iconColor,
-                        color: 'white',
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    });
-
-                    // Tooltip com o código do marco - exibido permanentemente apenas em zoom alto
-                    if (map.getZoom() > 16) {
-                        marker.bindTooltip(props.codigo, {
-                            permanent: true,
-                            direction: 'top',
-                            className: 'lbl-marco'
-                        });
-                    } else {
-                        marker.bindTooltip(props.codigo, {
-                            permanent: false,
-                            direction: 'top',
-                            className: 'lbl-marco'
-                        });
-                    }
-
-                    // Popup
-                    marker.bindPopup(`
-                        <div style="font-family: Arial; min-width: 200px;">
-                            <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">
-                                ${props.codigo}
-                            </h3>
-                            <table style="width: 100%; font-size: 13px;">
-                                <tr><td><strong>Tipo:</strong></td><td>${props.tipo}</td></tr>
-                                <tr><td><strong>Município:</strong></td><td>${props.municipio || 'N/A'}</td></tr>
-                                <tr><td><strong>Estado:</strong></td><td>${props.estado || 'PR'}</td></tr>
-                                <tr><td><strong>Altitude:</strong></td><td>${props.altitude ? props.altitude + 'm' : 'N/A'}</td></tr>
-                                <tr><td><strong>Status:</strong></td><td>${props.status || 'LEVANTADO'}</td></tr>
-                            </table>
-                        </div>
-                    `);
-
-                    window.marcadoresLayer.addLayer(marker);
-                    marcosAdicionados++;
-                }
-
-            } catch (error) {
-                console.error(`❌ Erro ao processar item ${index}:`, error);
+                window.marcadoresLayer.addLayer(marker);
             }
         });
 
-        console.log(`✅ Adicionados: ${clustersAdicionados} clusters + ${marcosAdicionados} marcos`);
-
-        // Configuração de tooltips baseada no zoom
+        // Handler de Tooltip Defensivo (A CORREÇÃO CRÍTICA ESTÁ AQUI)
         if (!window.marcoTooltipHandler) {
             window.marcoTooltipHandler = function() {
                 const currentZoom = map.getZoom();
+                if (!window.marcadoresLayer) return;
+
                 window.marcadoresLayer.eachLayer(layer => {
-                    if (layer.getTooltip && !layer.options.cluster) { // Apenas marcos individuais, não clusters
-                        if (currentZoom > 16) {
-                            // Verifica se o tooltip não está aberto antes de abrir (evitar redundância)
-                            if (!layer.isTooltipOpen()) {
+                    // Verificação tripla: existe layer? tem getTooltip? não é cluster?
+                    if (layer && typeof layer.getTooltip === 'function' && !layer.options?.cluster) {
+                        const tooltip = layer.getTooltip();
+                        if (tooltip) {
+                            // Ao invés de abrir/fechar manualmente e causar erro de estado,
+                            // ajustamos a propriedade permanent do tooltip existente
+                            if (currentZoom > 16) {
                                 layer.openTooltip();
-                            }
-                        } else {
-                            // Fecha o tooltip se o zoom estiver baixo
-                            if (layer.isTooltipOpen()) {
+                            } else {
                                 layer.closeTooltip();
                             }
                         }
                     }
                 });
             };
-
-            // Adiciona o listener de zoom, se ainda não existir
             map.on('zoomend', window.marcoTooltipHandler);
         }
 
-        console.log(`🎉 MARCADORES ATUALIZADOS COM SUCESSO!`);
-
     } catch (error) {
-        console.error('❌ ERRO em atualizarMarcadores():');
-        console.error('Mensagem:', error.message);
-        console.error('Stack:', error.stack);
+        console.error('❌ Erro seguro em atualizarMarcadores:', error);
     }
 }
 
