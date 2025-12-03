@@ -1,325 +1,213 @@
 const express = require('express');
+const router = express.Router();
 const multer = require('multer');
-const axios = require('axios');
-const FormData = require('form-data');
 const fs = require('fs');
-const path = require('path');
-const { Client } = require('pg');
-const { parseCoordinatePair } = require('../utils/coordinate-parser');
+const csv = require('csv-parser');
+const format = require('pg-format');
+const { pool } = require('../database/postgres-connection');
 
-// Configure multer for file upload
+// Configuração do multer para upload de arquivos
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = 'uploads/';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    destination: function (req, file, cb) {
+        const uploadDir = 'uploads/';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'csv-upload-' + uniqueSuffix + '.csv');
     }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'csv-upload-' + uniqueSuffix + path.extname(file.originalname));
-  }
 });
 
 const upload = multer({
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only CSV files are allowed'));
+    storage: storage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Apenas arquivos CSV são permitidos'));
+        }
     }
-  }
 });
 
-// Function to parse HTML table content from Unstructured response
-function parseHtmlTable(htmlString) {
-  // Simple regex-based approach to extract table data from HTML
-  // This is a basic implementation - for more complex HTML, a proper HTML parser would be needed
-  const rows = [];
-  const tableMatch = htmlString.match(/<table\b[^>]*>([\s\S]*?)<\/table>/i);
+// Função de Inteligência: Sanitizar Números PT-BR
+function limparNumero(valor) {
+    if (!valor) return null;
+    let str = String(valor).trim();
 
-  if (tableMatch) {
-    const tableContent = tableMatch[1];
-    // Find all rows
-    const rowMatches = tableContent.match(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi);
+    // Remove aspas simples ou duplas extras
+    str = str.replace(/^["']|["']$/g, '');
 
-    if (rowMatches) {
-      for (const rowMatch of rowMatches) {
-        const cellMatches = rowMatch[1].match(/<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi);
-        const row = [];
+    // Se estiver vazio após limpar
+    if (str === '') return null;
 
-        if (cellMatches) {
-          for (const cellMatch of cellMatches) {
-            // Extract text content from the cell
-            const cellText = cellMatch.replace(/<(?:.|\n)*?>/gm, '').trim();
-            row.push(cellText);
-          }
-        }
-
-        rows.push(row);
-      }
+    // Detecção de formato brasileiro (1.234,56) vs Americano (1,234.56)
+    // Lógica simples: Se tem vírgula, assume que é decimal e remove pontos de milhar
+    if (str.includes(',')) {
+        str = str.replace(/\./g, ''); // Remove pontos de milhar
+        str = str.replace(',', '.');  // Troca vírgula decimal por ponto
     }
-  }
 
-  return rows;
+    const numero = parseFloat(str);
+    return isNaN(numero) ? null : numero;
 }
 
-// Function to normalize headers to standard column names
-function normalizeHeaders(headers) {
-  const headerMap = {
-    'codigo': 'codigo',
-    'código': 'codigo',
-    'cod': 'codigo',
-    'id': 'codigo',
-    'e': 'e',
-    'easting': 'e',
-    'x': 'e',
-    'n': 'n',
-    'northing': 'n',
-    'y': 'n',
-    'h': 'h',
-    'altitude': 'h',
-    'elevacao': 'h',
-    'elevação': 'h',
-    'descricao': 'descricao',
-    'descrição': 'descricao',
-    'descricao_levantamento': 'descricao',
-    'descrição_levantamento': 'descricao'
-  };
+// Função principal para manipular a importação de CSV (mantendo o nome original para compatibilidade)
+async function importarCsv(req, res, next) {
+    console.log('📥 [ETL] Iniciando processamento inteligente de CSV...');
 
-  return headers.map(header => {
-    const normalized = header.toLowerCase().trim();
-    return headerMap[normalized] || normalized;
-  });
-}
+    // Verifica flag de simulação
+    const simulacao = req.body.simulacao === 'true' || req.query.simulacao === 'true';
+    if (simulacao) console.log('🧪 MODO SIMULAÇÃO ATIVADO: Nenhuma alteração será persistida.');
 
-// Function to identify header row and extract data
-function extractTableData(rows) {
-  if (!rows || rows.length === 0) return { headers: [], data: [] };
-
-  // Look for header row (first row with expected column names)
-  let headerRowIndex = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i].map(cell => cell.toLowerCase().trim());
-    // Check if this row contains expected headers
-    const hasCodigo = row.some(cell => ['codigo', 'código', 'cod', 'id'].includes(cell));
-    const hasE = row.some(cell => ['e', 'easting', 'x'].includes(cell));
-    const hasN = row.some(cell => ['n', 'northing', 'y'].includes(cell));
-
-    if (hasCodigo && (hasE || hasN)) {
-      headerRowIndex = i;
-      break;
-    }
-  }
-
-  if (headerRowIndex === -1) {
-    // If we can't find headers, assume first row contains headers
-    headerRowIndex = 0;
-  }
-
-  // Get headers and normalize them
-  const originalHeaders = rows[headerRowIndex];
-  const headers = normalizeHeaders(originalHeaders);
-
-  // Extract data rows (everything after header row)
-  const data = [];
-  for (let i = headerRowIndex + 1; i < rows.length; i++) {
-    if (rows[i].some(cell => cell.trim() !== '')) { // Skip empty rows
-      const row = {};
-      for (let j = 0; j < headers.length; j++) {
-        row[headers[j]] = j < rows[i].length ? rows[i][j] : '';
-      }
-      data.push(row);
-    }
-  }
-
-  return { headers, data };
-}
-
-// Função principal para manipular a importação de CSV
-async function handleCsvImport(req, res, next) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    }
-
-    const filePath = req.file.path;
-    const unstructuredApiUrl = process.env.UNSTRUCTURED_API_URL || 'http://localhost:8001'; // Use a porta do seu container Unstructured
+    const client = await pool.connect();
+    const resultados = { total: 0, validos: 0, pendentes: 0, erros: [] };
+    const BATCH_SIZE = 1000;
+    let batch = [];
 
     try {
-      // Create form data to send the file to Unstructured API
-      const form = new FormData();
-      form.append('files', fs.createReadStream(filePath));
-      form.append('strategy', 'hi_res'); // Use hi_res for better accuracy with tables
+        await client.query('BEGIN');
 
-      // Send the file to Unstructured API
-      const unstructuredResponse = await axios.post(
-        `${unstructuredApiUrl}/general/v0/general`,
-        form,
-        {
-          headers: {
-            ...form.getHeaders(),
-          },
-          timeout: 60000 // 60 second timeout for larger files
+        // Função para processar e salvar lote
+        const processarLote = async (dados) => {
+            if (dados.length === 0) return;
+
+            const query = format(
+                `INSERT INTO marcos_levantados
+                (codigo, tipo, localizacao, coordenada_e, coordenada_n, altitude, geometry, status_validacao, erro_validacao, lote_importacao, data_levantamento)
+                VALUES %L
+                ON CONFLICT (codigo) DO UPDATE SET
+                    coordenada_e = EXCLUDED.coordenada_e,
+                    coordenada_n = EXCLUDED.coordenada_n,
+                    altitude = EXCLUDED.altitude,
+                    geometry = EXCLUDED.geometry,
+                    status_validacao = EXCLUDED.status_validacao,
+                    erro_validacao = EXCLUDED.erro_validacao,
+                    updated_at = NOW()`,
+                dados
+            );
+            await client.query(query);
+        };
+
+        // Stream de Leitura
+        const stream = fs.createReadStream(req.file.path)
+            .pipe(csv({
+                separator: ',', // O arquivo do usuário usa vírgula como separador de colunas
+                mapHeaders: ({ header }) => header.trim().toLowerCase() // Normalizar headers
+            }));
+
+        for await (const row of stream) {
+            resultados.total++;
+
+            // 1. Mapeamento Inteligente
+            const codigo = row['código'] || row['codigo'] || row['id'];
+            const rawE = row['e'] || row['easting'] || row['coordenada_e'];
+            const rawN = row['n'] || row['northing'] || row['coordenada_n'];
+            const rawH = row['h'] || row['altitude'] || row['cota'];
+            const localizacao = row['localização'] || row['localizacao'] || 'Importado via CSV';
+
+            // Determinar tipo pelo código (Ex: FHV-V-0001 -> V)
+            let tipo = 'P'; // Default
+            if (codigo && codigo.includes('-V-')) tipo = 'V';
+            if (codigo && codigo.includes('-M-')) tipo = 'M';
+
+            // 2. Sanitização e Conversão
+            const coordE = limparNumero(rawE);
+            const coordN = limparNumero(rawN);
+            const altH = limparNumero(rawH);
+
+            // 3. Validação de Regras de Negócio
+            let status = 'VALIDADO';
+            let erroMotivo = null;
+            let geom = null;
+
+            // Regra: Coordenadas Obrigatórias e Numéricas
+            if (coordE === null || coordN === null) {
+                status = 'PENDENTE';
+                erroMotivo = 'Coordenadas nulas ou formato inválido';
+            }
+            // Regra: Range UTM Zona 22S (Aproximado para PR)
+            else if (coordE < 100000 || coordE > 900000 || coordN < 6000000 || coordN > 8000000) {
+                status = 'PENDENTE';
+                erroMotivo = `Coordenadas fora do padrão UTM 22S (E:${coordE}, N:${coordN})`;
+            } else {
+                // Se válido, cria geometria PostGIS
+                geom = `SRID=31982;POINT(${coordE} ${coordN})`;
+            }
+
+            if (status === 'VALIDADO') resultados.validos++;
+            else resultados.pendentes++;
+
+            // Adicionar ao Batch
+            if (codigo) {
+                batch.push([
+                    codigo,
+                    tipo,
+                    localizacao,
+                    coordE,
+                    coordN,
+                    altH,
+                    geom, // Pode ser null se inválido
+                    status,
+                    erroMotivo,
+                    `IMPORT-${new Date().toISOString().split('T')[0]}`, // Lote
+                    new Date() // Data cadastro
+                ]);
+            }
+
+            // Inserir se atingiu tamanho do lote
+            if (batch.length >= BATCH_SIZE) {
+                await processarLote(batch);
+                batch = [];
+            }
         }
-      );
 
-      // Process the response from Unstructured API
-      const elements = unstructuredResponse.data;
-      let tableData = [];
-
-      // Find table elements in the response
-      for (const element of elements) {
-        if (element.type === 'Table') {
-          // If the table has HTML content, parse it
-          if (element.metadata && element.metadata.text_as_html) {
-            const rows = parseHtmlTable(element.metadata.text_as_html);
-            const extracted = extractTableData(rows);
-            tableData = [...tableData, ...extracted.data];
-          } else if (element.text) {
-            // Fallback: if there's plain text, we might need to parse it differently
-            // For now, we'll just log this case
-            console.log('Found table element with plain text:', element.text);
-          }
-        }
-      }
-
-      // If we didn't find table elements, try to process all elements as potential tabular data
-      if (tableData.length === 0) {
-        console.log('No table elements found, analyzing all elements...');
-        for (const element of elements) {
-          if (element.type === 'UncategorizedText' || element.type === 'NarrativeText') {
-            // This is basic handling - in a real implementation, you might need more sophisticated parsing
-            console.log('Found text element:', element.text.substring(0, 100) + '...');
-          }
-        }
-      }
-
-      if (tableData.length === 0) {
-        return res.status(400).json({ error: 'Nenhuma tabela válida encontrada no arquivo CSV' });
-      }
-
-      // Connect to database
-      const client = new Client({
-        user: process.env.DB_USER || 'seu_usuario',
-        host: process.env.DB_HOST || 'db_inventario_prod',
-        database: process.env.DB_NAME || 'nome_do_banco',
-        password: process.env.DB_PASS || 'sua_senha',
-        port: process.env.DB_PORT || 5434,  // Use a porta do seu container PostgreSQL
-      });
-
-      await client.connect();
-
-      let importedCount = 0;
-      let pendingCount = 0;
-
-      // Process each row and insert into database
-      for (const row of tableData) {
-        const { codigo, e, n, h, descricao } = row;
-
-        if (!codigo) {
-          continue; // Skip rows without a code
+        // Processar lote final
+        if (batch.length > 0) {
+            await processarLote(batch);
         }
 
-        // Parse coordinates
-        const coordResult = parseCoordinatePair(e, n);
-
-        // Prepare the database insert/update query
-        let query, queryParams;
-        if (coordResult.valid) {
-          // If coordinates are valid, create geometry and set status as VALIDADO
-          query = `
-            INSERT INTO marcos_levantados (codigo, descricao, h, n, e, geometry, status)
-            VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($5, $4), 31982), 'VALIDADO')
-            ON CONFLICT (codigo) DO UPDATE SET
-              descricao = EXCLUDED.descricao,
-              h = EXCLUDED.h,
-              n = EXCLUDED.n,
-              e = EXCLUDED.e,
-              geometry = ST_SetSRID(ST_MakePoint(EXCLUDED.e, EXCLUDED.n), 31982),
-              status = 'VALIDADO'
-          `;
-          queryParams = [codigo, descricao || '', h || null, coordResult.lat, coordResult.lng];
+        // Finalização
+        if (simulacao) {
+            await client.query('ROLLBACK');
+            console.log('⏪ ROLLBACK executado (Modo Simulação)');
         } else {
-          // If coordinates are invalid, don't create geometry and set status as PENDENTE
-          query = `
-            INSERT INTO marcos_levantados (codigo, descricao, h, n, e, status)
-            VALUES ($1, $2, $3, $4, $5, 'PENDENTE')
-            ON CONFLICT (codigo) DO UPDATE SET
-              descricao = EXCLUDED.descricao,
-              h = EXCLUDED.h,
-              n = $4,
-              e = $5,
-              status = 'PENDENTE'
-          `;
-          queryParams = [codigo, descricao || '', h || null, n || null, e || null];
+            await client.query('COMMIT');
+            console.log('💾 COMMIT executado (Dados Persistidos)');
         }
 
-        try {
-          await client.query(query, queryParams);
-          if (coordResult.valid) {
-            importedCount++;
-          } else {
-            pendingCount++;
-          }
-        } catch (dbError) {
-          console.error(`Error inserting/updating marco with code ${codigo}:`, dbError);
-          // Continue processing other rows even if one fails
+        // Resposta Detalhada
+        res.json({
+            sucesso: true,
+            modo_simulacao: simulacao,
+            estatisticas: resultados,
+            mensagem: simulacao
+                ? `Simulação OK! ${resultados.validos} válidos, ${resultados.pendentes} pendentes. Nada foi salvo.`
+                : `Importação concluída! ${resultados.validos} salvos, ${resultados.pendentes} marcados como pendentes.`
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('❌ Erro crítico na importação:', error);
+        res.status(500).json({
+            sucesso: false,
+            erro: error.message,
+            detalhes: "Verifique se o arquivo CSV está separado por vírgulas e possui colunas 'Código', 'E', 'N'."
+        });
+    } finally {
+        client.release();
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path); // Limpar arquivo temp
         }
-      }
-
-      await client.end();
-
-      // Clean up uploaded file
-      fs.unlinkSync(filePath);
-
-      res.status(200).json({
-        message: 'Importação concluída com sucesso',
-        imported: importedCount,
-        pending: pendingCount
-      });
-
-    } catch (unstructuredError) {
-      console.error('Error communicating with Unstructured API:', unstructuredError);
-
-      // Clean up uploaded file even if Unstructured API call fails
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-
-      res.status(500).json({
-        error: 'Erro ao processar o arquivo com a API Unstructured',
-        details: unstructuredError.message
-      });
     }
-  } catch (error) {
-    console.error('Error in CSV import route:', error);
-
-    // Clean up uploaded file in case of error
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-
-    res.status(500).json({
-      error: 'Erro interno ao processar o upload',
-      details: error.message
-    });
-  }
 }
 
-// Exportar a função específica para manipular a rota
+// Rota principal de importação CSV
+router.post('/', upload.single('csvFile'), importarCsv);
+
+// Exportar a função específica para manipular a rota (mantendo compatibilidade com o server.js)
 module.exports = {
-  importarCsv: (req, res, next) => {
-    // Middleware de upload
-    const uploadMiddleware = upload.single('csvFile');
-    uploadMiddleware(req, res, (err) => {
-      if (err) {
-        return res.status(400).json({ error: 'Erro no upload do arquivo' });
-      }
-      // Chamar a função de tratamento principal
-      handleCsvImport(req, res, next);
-    });
-  }
+    importarCsv
 };

@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
                 data_levantamento, metodo, limites,
                 precisao_e, precisao_n, precisao_h,
                 validado, fonte, observacoes,
+                status_validacao, erro_validacao,
                 created_at, updated_at
             FROM marcos_levantados
             WHERE 1=1
@@ -176,6 +177,7 @@ router.get('/:id', async (req, res) => {
                 data_levantamento, metodo, limites,
                 precisao_e, precisao_n, precisao_h,
                 validado, fonte, observacoes,
+                status_validacao, erro_validacao,
                 created_at, updated_at
             FROM marcos_levantados
             WHERE id = $1`,

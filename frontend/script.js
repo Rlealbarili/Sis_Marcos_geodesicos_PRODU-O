@@ -4684,127 +4684,73 @@ function renderizarPaginacaoHistorico(total, paginaAtual, limite) {
 // Função para carregar marcos com paginação
 async function carregarMarcosLista(pagina = 1) {
     try {
-        console.log('📍 Carregando lista de marcos (paginação) - Página:', pagina);
+        console.log('📍 Carregando lista de marcos (paginação + filtros) - Página:', pagina);
 
         const container = document.getElementById('marcos-grid');
-        if (!container) {
-            console.warn('⚠️ Container marcos-grid não encontrado');
-            return;
-        }
+        if (!container) return;
 
-        // Calcular offset com base na página
+        // 1. Captura de Filtros da UI
+        const termoBusca = document.getElementById('busca-marcos')?.value || '';
+        const tipoFiltro = document.getElementById('filtro-tipo')?.value || 'todos';
+        const statusFiltro = document.getElementById('filtro-status')?.value || 'todos';
+
+        // 2. Construção da URL
         const offset = (pagina - 1) * limitePorPagina;
+        let url = `${API_URL}/api/marcos?limite=${limitePorPagina}&offset=${offset}`;
 
-        // Mostrar loading
-        container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 2rem;">Carregando marcos...</p>';
+        // Adiciona parâmetros apenas se tiverem valor
+        if (termoBusca) url += `&busca=${encodeURIComponent(termoBusca)}`;
+        if (tipoFiltro && tipoFiltro !== 'todos') url += `&tipo=${tipoFiltro}`;
+        if (statusFiltro === 'validado') url += `&validado=true`;
+        if (statusFiltro === 'pendente') url += `&validado=false`;
 
-        // Atualizar URL com parâmetros de paginação (Removido filtro hardcoded para mostrar todo o inventário)
-        const url = `${API_URL}/api/marcos?limite=${limitePorPagina}&offset=${offset}`;
+        // Feedback Visual
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">
+                <i data-lucide="loader-2" class="animate-spin" style="width: 32px; height: 32px; margin-bottom: 10px;"></i>
+                <p>Buscando dados...</p>
+            </div>
+        `;
+        if(typeof lucide !== 'undefined') lucide.createIcons();
+
+        // 3. Requisição
         const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const result = await response.json();
         const marcos = result.data || [];
         totalRegistros = result.total || 0;
         totalPaginas = Math.ceil(totalRegistros / limitePorPagina);
-
-        // Atualizar página atual
         paginaAtual = pagina;
 
-        console.log(`✅ ${marcos.length} marcos carregados para a lista (Página ${pagina} de ${totalPaginas})`);
+        console.log(`✅ ${marcos.length} marcos carregados.`);
 
-        // Renderizar cards
+        // 4. Renderização
         if (marcos.length === 0) {
             container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
-                    <p style="color: var(--text-secondary);">Nenhum marco encontrado</p>
+                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: var(--bg-secondary); border-radius: 8px;">
+                    <i data-lucide="search-x" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: 1rem;"></i>
+                    <p style="color: var(--text-primary); font-weight: 600;">Nenhum marco encontrado</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Tente ajustar os filtros de busca.</p>
                 </div>
             `;
+        } else {
+            // Usa a função global criarCardMarco se existir, ou define fallback
+            const renderCard = window.criarCardMarco || function(m) {
+                return `<div class="card" style="padding:1rem;"><strong>${m.codigo}</strong><br>${m.localizacao || ''}</div>`;
+            };
 
-            // Esconder paginação se não houver resultados
-            const paginationContainer = document.getElementById('marcos-pagination');
-            if (paginationContainer) {
-                paginationContainer.style.display = 'none';
-            }
-
-            return;
+            container.innerHTML = marcos.map(m => renderCard(m)).join('');
         }
 
-        container.innerHTML = marcos.map(marco => `
-            <div class="marco-card" style="
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-lg);
-                padding: var(--space-4);
-                cursor: pointer;
-                transition: all 0.2s;
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
-                    <span style="font-weight: 600; color: var(--text-primary);">${marco.codigo || 'N/A'}</span>
-                    <span style="
-                        background: ${marco.validado ? 'var(--success-bg)' : 'var(--warning-bg)'};
-                        color: ${marco.validado ? 'var(--success)' : 'var(--warning)'};
-                        padding: var(--space-1) var(--space-2);
-                        border-radius: var(--radius);
-                        font-size: var(--text-xs);
-                        font-weight: 500;
-                    ">${marco.validado ? 'Levantado' : 'Pendente'}</span>
-                </div>
-                <div style="color: var(--text-secondary); font-size: var(--text-sm);">
-                    <div>${marco.localizacao || 'Localização não informada'}</div>
-                    <div style="margin-top: var(--space-1);">
-                        ${marco.municipio || 'N/A'} - ${marco.estado || 'N/A'}
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        // Atualizar informações de paginação
+        // 5. Atualiza Paginação e Ícones
         atualizarInfoPaginacao();
-
-        // Adicionar event listeners aos cards
-        container.querySelectorAll('.marco-card').forEach((card, index) => {
-            card.addEventListener('click', () => {
-                const marco = marcos[index];
-                if (marco.latitude && marco.longitude) {
-                    // Trocar para aba do mapa
-                    const mapaButton = document.querySelector('.tab-button[data-tab="mapa"]');
-                    if (mapaButton) mapaButton.click();
-
-                    // Centralizar no marco
-                    setTimeout(() => {
-                        if (window.map) {
-                            window.map.setView([marco.latitude, marco.longitude], 16);
-                        }
-                    }, 100);
-                }
-            });
-        });
-
-        // Mostrar controles de paginação
-        const paginationContainer = document.getElementById('marcos-pagination');
-        if (paginationContainer) {
-            paginationContainer.style.display = 'flex';
-        }
-
-        // Atualizar ícones Lucide após renderizar os cards
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 
     } catch (error) {
-        console.error('❌ Erro ao carregar lista de marcos:', error);
+        console.error('❌ Erro na listagem:', error);
         const container = document.getElementById('marcos-grid');
-        if (container) {
-            container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
-                    <p style="color: var(--danger);">Erro ao carregar marcos. Tente novamente.</p>
-                </div>
-            `;
-        }
+        if(container) container.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar dados: ${error.message}</p>`;
     }
 }
 
