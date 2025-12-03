@@ -3457,7 +3457,8 @@ function atualizarMarcadores() {
                 const marker = L.marker([lat, lng], {
                     icon: L.divIcon({
                         html: `<div style="background: ${color}; color: white; border-radius: 50%; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${props.point_count}</div>`,
-                        iconSize: [size, size]
+                        iconSize: [size, size],
+                        className: 'custom-cluster-icon'
                     })
                 });
 
@@ -4697,8 +4698,8 @@ async function carregarMarcosLista(pagina = 1) {
         // Mostrar loading
         container.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 2rem;">Carregando marcos...</p>';
 
-        // Atualizar URL com parâmetros de paginação
-        const url = `${API_URL}/api/marcos?limite=${limitePorPagina}&offset=${offset}&levantados=true`;
+        // Atualizar URL com parâmetros de paginação (Removido filtro hardcoded para mostrar todo o inventário)
+        const url = `${API_URL}/api/marcos?limite=${limitePorPagina}&offset=${offset}`;
         const response = await fetch(url);
 
         if (!response.ok) {

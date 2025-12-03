@@ -1812,3 +1812,12 @@ tbody td {
 .leaflet-interactive:hover {
     cursor: pointer;
 }
+
+/* =========================================
+   CORREÇÃO VISUAL DOS CLUSTERS (Petrovich)
+   ========================================= */
+/* Remove o "quadrado" padrão do container do L.divIcon do Leaflet */
+.custom-cluster-icon {
+    background: transparent !important;
+    border: none !important;
+}
