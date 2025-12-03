@@ -135,6 +135,20 @@ O sistema inclui endpoints e consultas otimizadas para gerar estatísticas sobre
   - Contagens por tipo de marco (`SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V'`)
   - Contagens por tipo de marco validados (`SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' AND validado = true`)
 
+### 3.7. Persistência de Geometria de Propriedades
+O sistema inclui lógica para persistência de geometria poligonal de propriedades importadas via memorial descritivo.
+
+**Endpoint `/api/salvar-memorial-completo`:**
+- Recebe dados de cliente, propriedade e vértices extraídos de memorial descritivo
+- Persiste os dados em transação atômica (cliente, propriedade, vértices)
+- Gera automaticamente a geometria poligonal usando PostGIS:
+  - `ST_MakePoint`: Converte coordenadas UTM para pontos GIS
+  - `ST_MakeLine`: Conecta os vértices na ordem especificada
+  - `ST_MakePolygon`: Converte a linha fechada em polígono
+  - `ST_SetSRID`: Define o sistema de referência como EPSG:31982 (SIRGAS 2000 UTM 22S)
+- Persiste a geometria na coluna `geometry` da tabela `propriedades`
+- Permite visualização no mapa via endpoint `/api/propriedades/geojson`
+
 ## 4. Visões de Banco de Dados (Views)
 
 ### 4.1. `vw_clientes_completa` (View de Clientes Completa)

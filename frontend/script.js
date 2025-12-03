@@ -3107,26 +3107,19 @@ async function salvarMemorialCompletoAba() {
     try {
         btnSalvar.disabled = true;
         btnSalvar.innerHTML = '<span class="loading"></span> Salvando...';
-        mensagemDiv.innerHTML = '';
+        if(mensagemDiv) mensagemDiv.innerHTML = '';
 
-        // Coletar dados do cliente
+        // 1. Coletar dados do cliente
         const tipoCliente = document.querySelector('input[name="tipo-cliente-aba"]:checked').value;
         let clienteData;
 
         if (tipoCliente === 'existente') {
             const clienteId = document.getElementById('select-cliente-aba').value;
-            if (!clienteId) {
-                throw new Error('Selecione um cliente');
-            }
-            clienteData = {
-                novo: false,
-                id: parseInt(clienteId)
-            };
+            if (!clienteId) throw new Error('Selecione um cliente');
+            clienteData = { novo: false, id: parseInt(clienteId) };
         } else {
             const nome = document.getElementById('cliente-nome-aba').value.trim();
-            if (!nome) {
-                throw new Error('Nome do cliente é obrigatório');
-            }
+            if (!nome) throw new Error('Nome do cliente é obrigatório');
 
             clienteData = {
                 novo: true,
@@ -3137,14 +3130,10 @@ async function salvarMemorialCompletoAba() {
             };
         }
 
-        // Coletar dados da propriedade
-        const nomePropriedade = document.getElementById('prop-nome-aba').value.trim();
-        const matricula = document.getElementById('prop-matricula-aba').value.trim();
-
-        // MATRÍCULA AGORA É OPCIONAL!
+        // 2. Coletar dados da propriedade
         const propriedadeData = {
-            nome_propriedade: nomePropriedade || 'Sem nome',
-            matricula: matricula || null, // Pode ser null
+            nome_propriedade: document.getElementById('prop-nome-aba').value.trim() || 'Sem nome',
+            matricula: document.getElementById('prop-matricula-aba').value.trim() || null,
             tipo: document.getElementById('prop-tipo-aba').value,
             municipio: document.getElementById('prop-municipio-aba').value.trim() || null,
             uf: document.getElementById('prop-uf-aba').value.trim() || null,
@@ -3152,9 +3141,12 @@ async function salvarMemorialCompletoAba() {
             perimetro_m: parseFloat(document.getElementById('prop-perimetro-aba').value) || null
         };
 
-        // Preparar vértices
-        const dadosExtraidos = window.dadosMemorialExtraidos;
-        const vertices = dadosExtraidos.data.vertices.map((v, index) => ({
+        // 3. Recuperar vértices da extração anterior (Global)
+        if (!window.dadosMemorialExtraidos || !window.dadosMemorialExtraidos.data || !window.dadosMemorialExtraidos.data.vertices) {
+            throw new Error("Dados dos vértices perdidos. Por favor, faça o upload novamente.");
+        }
+
+        const vertices = window.dadosMemorialExtraidos.data.vertices.map((v, index) => ({
             nome: v.nome,
             ordem: index + 1,
             coordenadas: {
@@ -3168,24 +3160,17 @@ async function salvarMemorialCompletoAba() {
             }
         }));
 
-        // Preparar memorial
-        const memorial = {
-            arquivo_nome: dadosExtraidos.arquivo_nome || 'memorial.docx',
-            estatisticas: dadosExtraidos.data.estatisticas
-        };
-
-        // Montar payload
+        // 4. Montar Payload Final
         const payload = {
             cliente: clienteData,
             propriedade: propriedadeData,
-            vertices: vertices,
-            memorial: memorial
+            vertices: vertices
         };
 
-        console.log('Salvando memorial:', payload);
+        console.log('📤 Enviando payload final:', payload);
 
-        // Enviar para API
-        const response = await fetch('/api/salvar-memorial-completo', {
+        // 5. Enviar para o Backend
+        const response = await fetch(`${window.API_URL}/api/salvar-memorial-completo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -3194,43 +3179,45 @@ async function salvarMemorialCompletoAba() {
         const result = await response.json();
 
         if (result.success) {
-            mensagemDiv.innerHTML = `
-                <div class="mensagem mensagem-sucesso">
-                    <strong>✅ ${result.message}</strong><br><br>
-                    <strong>Cliente ID:</strong> ${result.data.cliente_id}<br>
-                    <strong>Propriedade ID:</strong> ${result.data.propriedade_id}<br>
-                    <strong>Vértices criados:</strong> ${result.data.vertices_criados}<br>
-                    ${!matricula ? '<br><span style="background: #f39c12; color: white; padding: 5px 10px; border-radius: 5px;">⚠️ Propriedade SEM MATRÍCULA - Aguardando regularização</span>' : ''}
-                </div>
-            `;
+            // SUCESSO!
+            showToast('✅ Memorial salvo e polígono gerado com sucesso!', 'success');
 
-            btnSalvar.innerHTML = '✅ Salvo com Sucesso!';
-            btnSalvar.style.background = '#27ae60';
+            // Fechar modal e limpar
+            document.getElementById('formulario-confirmacao-memorial').style.display = 'none';
+            document.getElementById('arquivo-memorial').value = '';
+            document.getElementById('nome-arquivo-selecionado').textContent = '';
+            document.getElementById('btn-processar').disabled = true;
+            window.dadosMemorialExtraidos = null;
 
-            // Atualizar dashboard
-            atualizarEstatisticas();
+            // ATUALIZAÇÃO CRÍTICA DO MAPA
+            if (typeof carregarPropriedadesNoMapa === 'function') {
+                console.log('🔄 Recarregando polígonos no mapa...');
+                await carregarPropriedadesNoMapa();
+            }
 
-            // Limpar após 3 segundos
-            setTimeout(() => {
-                document.getElementById('formulario-confirmacao-memorial').style.display = 'none';
-                document.getElementById('arquivo-memorial').value = '';
-                document.getElementById('nome-arquivo-selecionado').textContent = '';
-                document.getElementById('btn-processar').disabled = true;
-            }, 3000);
+            // Se estivermos na aba mapa, focar na nova propriedade
+            if (result.data && result.data.propriedade_id) {
+                // Opcional: mudar para aba mapa e dar zoom
+                // trocarAba('mapa');
+                // verPropriedadeNoMapa(result.data.propriedade_id);
+            }
+
+            if (typeof atualizarEstatisticas === 'function') {
+                atualizarEstatisticas();
+            }
 
         } else {
-            throw new Error(result.message || 'Erro ao salvar memorial');
+            throw new Error(result.message || 'Erro ao salvar no banco de dados');
         }
 
     } catch (error) {
-        console.error('Erro ao salvar memorial:', error);
-        mensagemDiv.innerHTML = `
-            <div class="mensagem mensagem-erro">
-                <strong>❌ Erro ao salvar memorial</strong><br>
-                ${error.message}
-            </div>
-        `;
-
+        console.error('❌ Erro ao salvar:', error);
+        if(mensagemDiv) {
+            mensagemDiv.innerHTML = `<div class="mensagem mensagem-erro">❌ ${error.message}</div>`;
+        } else {
+            alert(`Erro: ${error.message}`);
+        }
+    } finally {
         btnSalvar.disabled = false;
         btnSalvar.innerHTML = '✅ Salvar Memorial Completo';
     }

@@ -847,6 +847,128 @@ app.post('/api/memorial/upload', upload.single('memorial'), async (req, res) => 
 });
 
 // ============================================
+// ROTA CRÍTICA: SALVAR MEMORIAL E GERAR GEOMETRIA
+// ============================================
+app.post('/api/salvar-memorial-completo', async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const { cliente, propriedade, vertices } = req.body;
+
+        // 1. Gestão do Cliente
+        let clienteId;
+        if (cliente.novo) {
+            const clienteRes = await client.query(
+                `INSERT INTO clientes (nome, cpf_cnpj, telefone, email, endereco, created_at)
+                 VALUES ($1, $2, $3, $4, $5, NOW())
+                 RETURNING id`,
+                [cliente.nome, cliente.cpf_cnpj, cliente.telefone, cliente.email, cliente.endereco]
+            );
+            clienteId = clienteRes.rows[0].id;
+        } else {
+            clienteId = cliente.id;
+        }
+
+        // 2. Criação da Propriedade (Sem geometria ainda)
+        const propRes = await client.query(
+            `INSERT INTO propriedades
+            (nome_propriedade, matricula, tipo, municipio, uf, area_m2, perimetro_m, cliente_id, observacoes, ativo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+            RETURNING id`,
+            [
+                propriedade.nome_propriedade,
+                propriedade.matricula,
+                propriedade.tipo,
+                propriedade.municipio,
+                propriedade.uf,
+                propriedade.area_m2,
+                propriedade.perimetro_m,
+                clienteId,
+                'Importado via Memorial Descritivo (Automático)'
+            ]
+        );
+        const propriedadeId = propRes.rows[0].id;
+
+        // 3. Inserção dos Vértices (Batch Insert seria melhor, mas vamos manter simples e funcional)
+        for (const v of vertices) {
+            await client.query(
+                `INSERT INTO vertices
+                (propriedade_id, nome, ordem, utm_e, utm_n, latitude, longitude, utm_zona, datum)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    propriedadeId,
+                    v.nome,
+                    v.ordem,
+                    v.coordenadas.e,
+                    v.coordenadas.n,
+                    v.coordenadas.lat_original,
+                    v.coordenadas.lon_original,
+                    v.coordenadas.utm_zona || '22S',
+                    v.coordenadas.datum || 'SIRGAS2000'
+                ]
+            );
+        }
+
+        // 4. O MILAGRE GEOMÉTRICO (Protocolo ST_MakePolygon)
+        // Esta query reconstrói o polígono a partir dos vértices ordenados e atualiza a propriedade
+        // IMPORTANTE: Fecha o anel adicionando o primeiro ponto ao final se necessário
+        await client.query(`
+            UPDATE propriedades
+            SET geometry = ST_SetSRID(
+                ST_MakePolygon(
+                    ST_MakeLine(
+                        ARRAY(
+                            SELECT ST_MakePoint(utm_e, utm_n)
+                            FROM vertices
+                            WHERE propriedade_id = $1
+                            ORDER BY ordem
+                        )
+                        ||
+                        (
+                            SELECT ST_MakePoint(utm_e, utm_n)
+                            FROM vertices
+                            WHERE propriedade_id = $1
+                            ORDER BY ordem ASC
+                            LIMIT 1
+                        )
+                    )
+                ),
+                31982
+            )
+            WHERE id = $1
+        `, [propriedadeId]);
+
+        await client.query('COMMIT');
+
+        // Log de sucesso para auditoria
+        console.log(`[AUDITORIA] Propriedade ${propriedadeId} criada com geometria válida.`);
+
+        res.json({
+            success: true,
+            message: 'Memorial salvo e geometria calculada com sucesso!',
+            data: {
+                propriedade_id: propriedadeId,
+                cliente_id: clienteId,
+                vertices_criados: vertices.length
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ERRO CRÍTICO] Falha ao salvar memorial:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Falha na persistência de dados.',
+            error: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// ============================================
 // ERROR HANDLER
 // ============================================
 

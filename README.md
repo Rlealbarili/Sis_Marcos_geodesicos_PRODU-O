@@ -67,6 +67,11 @@ docker-compose -f docker-compose.prod.yml up -d
 - Listener implementado para processar buscas via tecla Enter
 - Redireciona automaticamente para a aba de marcos com o termo pesquisado
 
+### Importação de Memorais Descritivos
+- Extração de coordenadas e metadados de documentos .docx
+- Persistência de vértices e geração automática de geometria poligonal
+- Visualização de propriedades no mapa após importação
+
 ## Migração de Dados
 
 Se estiver migrando de um ambiente anterior, utilize o script de migração:

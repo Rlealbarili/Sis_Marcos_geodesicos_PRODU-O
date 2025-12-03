@@ -108,6 +108,7 @@ A função `registrarLog(usuario, acao, entidade, registro_id, descricao, req = 
 - Edição de registros existentes
 - Exclusão de registros
 - Importação de dados
+- Importação de memorais descritivos com geração automática de polígonos
 
 ### Tipos de Ações
 
