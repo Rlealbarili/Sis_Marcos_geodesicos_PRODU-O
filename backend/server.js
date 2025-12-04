@@ -527,8 +527,8 @@ const propriedadesRoutes = require('./routes/propriedades');
 app.use('/api/propriedades', propriedadesRoutes);
 
 // Rota de importação de CSV via Unstructured API
-const { importarCsv } = require('./routes/upload-csv');
-app.post('/api/marcos/importar-csv', importarCsv);
+const uploadCsvRouter = require('./routes/upload-csv');
+app.use('/api/marcos/importar-csv', uploadCsvRouter);
 
 // ============================================
 // ENDPOINT: Histórico de Atividades
