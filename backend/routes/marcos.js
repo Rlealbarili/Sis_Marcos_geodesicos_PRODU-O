@@ -13,7 +13,17 @@ const dxfGenerator = require('../utils/dxf-generator');
 // ========================================
 router.get('/', async (req, res) => {
     try {
-        const { limite = 1000, offset = 0, tipo, municipio, estado, status, busca } = req.query;
+        const { limite = 1000, offset = 0, tipo, municipio, estado, status, busca, levantados, validado } = req.query;
+
+        // Se levantados=true, filtrar apenas marcos validados com geometria
+        let baseWhere = '1=1';
+        if (levantados === 'true') {
+            baseWhere = 'validado = true AND geometry IS NOT NULL';
+        }
+        // Se validado foi passado explicitamente
+        if (validado !== undefined) {
+            baseWhere = validado === 'true' ? 'validado = true' : 'validado = false';
+        }
 
         let sqlQuery = `
             SELECT
@@ -28,9 +38,10 @@ router.get('/', async (req, res) => {
                 status_validacao, erro_validacao,
                 created_at, updated_at
             FROM marcos_levantados
-            WHERE 1=1
+            WHERE ${baseWhere}
         `;
-        
+
+
         const params = [];
         let paramIndex = 1;
 
@@ -70,37 +81,37 @@ router.get('/', async (req, res) => {
 
         const result = await query(sqlQuery, params);
 
-        // Contar total para paginação
-        const countSql = 'SELECT COUNT(*) as total FROM marcos_levantados WHERE 1=1';
+        // Contar total para paginação (COM FILTROS)
+        let countSql = `SELECT COUNT(*) as total FROM marcos_levantados WHERE ${baseWhere}`;
         const countParams = [];
         let countParamIndex = 1;
 
         if (tipo && tipo !== 'todos') {
-            sqlQuery += ` AND tipo = $${countParamIndex}`;
+            countSql += ` AND tipo = $${countParamIndex}`;
             countParams.push(tipo);
             countParamIndex++;
         }
 
         if (municipio) {
-            sqlQuery += ` AND municipio ILIKE $${countParamIndex}`;
+            countSql += ` AND municipio ILIKE $${countParamIndex}`;
             countParams.push(`%${municipio}%`);
             countParamIndex++;
         }
 
         if (estado) {
-            sqlQuery += ` AND estado = $${countParamIndex}`;
+            countSql += ` AND estado = $${countParamIndex}`;
             countParams.push(estado);
             countParamIndex++;
         }
 
         if (status) {
-            sqlQuery += ` AND validado = $${countParamIndex}`;
+            countSql += ` AND validado = $${countParamIndex}`;
             countParams.push(status === 'true');
             countParamIndex++;
         }
 
         if (busca) {
-            sqlQuery += ` AND (codigo ILIKE $${countParamIndex} OR localizacao ILIKE $${countParamIndex} OR observacoes ILIKE $${countParamIndex})`;
+            countSql += ` AND (codigo ILIKE $${countParamIndex} OR localizacao ILIKE $${countParamIndex} OR observacoes ILIKE $${countParamIndex})`;
             countParams.push(`%${busca}%`);
             countParamIndex++;
         }
