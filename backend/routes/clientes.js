@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/postgres-connection');
+const registrarLog = require('../utils/logger');
 
 // ========================================
 // GET /api/clientes - Listar todos
@@ -132,6 +133,9 @@ router.post('/', async (req, res) => {
             [nome, tipo_pessoa, cpf_cnpj, email, telefone, endereco, observacoes]
         );
 
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'CREATE', 'cliente', result.rows[0].id, `Cliente criado: ${nome}`, req);
+
         res.status(201).json({
             success: true,
             message: 'Cliente criado com sucesso',
@@ -187,6 +191,9 @@ router.put('/:id', async (req, res) => {
             });
         }
 
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'UPDATE', 'cliente', id, `Cliente atualizado: ${result.rows[0].nome}`, req);
+
         res.json({
             success: true,
             message: 'Cliente atualizado com sucesso',
@@ -235,6 +242,9 @@ router.delete('/:id', async (req, res) => {
                 message: 'Cliente não encontrado'
             });
         }
+
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'DELETE', 'cliente', id, `Cliente excluído: ${result.rows[0].nome}`, req);
 
         res.json({
             success: true,
