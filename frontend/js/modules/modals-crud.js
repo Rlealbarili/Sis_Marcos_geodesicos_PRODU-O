@@ -224,7 +224,7 @@ window.salvarNovaPropriedade = async function (event) {
 };
 
 // ========================================
-// SALVAR NOVO CLIENTE
+// SALVAR NOVO CLIENTE (ou ATUALIZAR se editando)
 // ========================================
 window.salvarNovoCliente = async function (event) {
     if (event) event.preventDefault();
@@ -243,6 +243,10 @@ window.salvarNovoCliente = async function (event) {
         return;
     }
 
+    // Verificar se está editando
+    const clienteEmEdicao = typeof window.getClienteEmEdicao === 'function' ? window.getClienteEmEdicao() : null;
+    const isEditing = clienteEmEdicao !== null;
+
     // Construir objeto do cliente
     const cliente = {
         nome: formData.get('nome'),
@@ -254,7 +258,7 @@ window.salvarNovoCliente = async function (event) {
         observacoes: formData.get('observacoes') || null
     };
 
-    console.log('📤 Enviando novo cliente:', cliente);
+    console.log(`📤 ${isEditing ? 'Atualizando' : 'Enviando novo'} cliente:`, cliente);
 
     // Desabilitar botão durante envio
     const btn = form.querySelector('button[type="submit"]');
@@ -265,8 +269,16 @@ window.salvarNovoCliente = async function (event) {
     }
 
     try {
-        const response = await fetch(`${window.API_URL}/api/clientes`, {
-            method: 'POST',
+        let url = `${window.API_URL}/api/clientes`;
+        let method = 'POST';
+
+        if (isEditing) {
+            url = `${window.API_URL}/api/clientes/${clienteEmEdicao.id}`;
+            method = 'PUT';
+        }
+
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -275,14 +287,17 @@ window.salvarNovoCliente = async function (event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.message || 'Erro ao criar cliente');
+            throw new Error(error.message || `Erro ao ${isEditing ? 'atualizar' : 'criar'} cliente`);
         }
 
         const resultado = await response.json();
-        console.log('✅ Cliente criado:', resultado);
+        console.log(`✅ Cliente ${isEditing ? 'atualizado' : 'criado'}:`, resultado);
 
         // Sucesso!
-        mostrarToast('success', 'Cliente criado!', `Cliente ${cliente.nome} foi adicionado com sucesso.`);
+        mostrarToast('success',
+            isEditing ? 'Cliente atualizado!' : 'Cliente criado!',
+            `Cliente ${cliente.nome} foi ${isEditing ? 'atualizado' : 'adicionado'} com sucesso.`
+        );
 
         // Fechar modal
         fecharModal('modal-novo-cliente');
@@ -298,8 +313,8 @@ window.salvarNovoCliente = async function (event) {
         }
 
     } catch (error) {
-        console.error('❌ Erro ao criar cliente:', error);
-        mostrarToast('error', 'Erro ao criar cliente', error.message);
+        console.error(`❌ Erro ao ${isEditing ? 'atualizar' : 'criar'} cliente:`, error);
+        mostrarToast('error', `Erro ao ${isEditing ? 'atualizar' : 'criar'} cliente`, error.message);
     } finally {
         if (btn) {
             btn.disabled = false;
