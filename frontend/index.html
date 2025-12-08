@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,23 +22,86 @@
     <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
 
     <style>
-        .app-container { display: flex; min-height: 100vh; background-color: var(--bg-primary); }
-        .main-content { flex: 1; margin-left: 275px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        @media (max-width: 1024px) { .main-content { margin-left: 0; } }
-        
-        .sidebar-menu { display: flex; flex-direction: column; padding: 10px; gap: 5px; }
-        .sidebar { width: 275px; height: 100vh; position: fixed; left: 0; top: 0; background: var(--bg-secondary); border-right: 1px solid var(--border-primary); z-index: 1001; transition: transform 0.3s ease; }
-        .sidebar-header { padding: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-primary); }
-        .sidebar-logo-text { font-weight: bold; font-size: 1.2rem; color: var(--text-primary); }
-        
-        .nav-link { 
-            display: flex; align-items: center; gap: 12px; padding: 12px 16px; 
-            color: var(--text-secondary); text-decoration: none; border-radius: 8px; 
-            transition: all 0.2s; font-weight: 500; 
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--bg-primary);
         }
-        .nav-link:hover { background-color: var(--bg-hover); color: var(--text-primary); }
-        .nav-link.active { background-color: var(--cogep-green-light); color: var(--cogep-green); }
-        .nav-link i { width: 20px; height: 20px; }
+
+        .main-content {
+            flex: 1;
+            margin-left: 275px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 5px;
+        }
+
+        .sidebar {
+            width: 275px;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-primary);
+            z-index: 1001;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .sidebar-logo-text {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background-color: var(--cogep-green-light);
+            color: var(--cogep-green);
+        }
+
+        .nav-link i {
+            width: 20px;
+            height: 20px;
+        }
 
         .stats-grid {
             display: grid;
@@ -48,6 +112,7 @@
             border-bottom: 1px solid var(--border-primary);
             z-index: 10;
         }
+
         .stat-card {
             background: var(--bg-secondary);
             padding: 15px;
@@ -57,11 +122,24 @@
             align-items: center;
             gap: 10px;
         }
-        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--text-primary); }
-        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
 
-        .content-body { flex: 1; position: relative; overflow: hidden; }
-        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .content-body {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
         /* MAPA: Sempre presente, mas pode ser sobreposto */
         #map {
             position: absolute;
@@ -71,7 +149,7 @@
             height: 100%;
             z-index: 1;
         }
-        
+
         /* Painéis de conteúdo: Sobrepõem o mapa */
         .content-panel {
             position: absolute;
@@ -80,23 +158,57 @@
             width: 100%;
             height: 100%;
             background-color: var(--bg-primary);
-            z-index: 5; /* Acima do mapa */
+            z-index: 5;
+            /* Acima do mapa */
             display: none;
             overflow-y: auto;
         }
-        .content-panel.active { display: block; animation: fadeIn 0.3s ease; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; justify-content: center; align-items: center; }
-        .modal.active { display: flex; }
-        
-        .menu-toggle-btn { display: none; position: fixed; top: 15px; right: 15px; z-index: 1002; }
-        @media (max-width: 1024px) { 
-            .menu-toggle-btn { display: block; } 
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.active { transform: translateX(0); }
+        .content-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .menu-toggle-btn {
+            display: none;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1002;
+        }
+
+        @media (max-width: 1024px) {
+            .menu-toggle-btn {
+                display: block;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
         }
     </style>
 </head>
+
 <body>
 
     <div class="app-container">
@@ -106,10 +218,10 @@
                     <i data-lucide="map-pin"></i><span class="sidebar-logo-text">COGEP</span>
                 </a>
             </div>
-            
+
             <div class="sidebar-menu">
                 <a href="#" class="nav-link active" data-view="mapa">
-                     <i data-lucide="map"></i> <span>Mapa</span>
+                    <i data-lucide="map"></i> <span>Mapa</span>
                 </a>
                 <a href="#" class="nav-link" data-view="marcos">
                     <i data-lucide="map-pin"></i> <span>Marcos</span>
@@ -134,33 +246,45 @@
         </aside>
 
         <main class="main-content">
-             <button class="menu-toggle-btn btn btn-secondary" id="mobile-menu-btn">
+            <button class="menu-toggle-btn btn btn-secondary" id="mobile-menu-btn">
                 <i data-lucide="menu"></i>
             </button>
 
             <div class="stats-grid">
                 <div class="stat-card">
                     <i data-lucide="map-pin" style="color: var(--cogep-green)"></i>
-                    <div><div class="stat-value" id="stat-marcos">0</div><div class="stat-label">Marcos</div></div>
+                    <div>
+                        <div class="stat-value" id="stat-marcos">0</div>
+                        <div class="stat-label">Marcos</div>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <i data-lucide="check-circle" style="color: #10B981"></i>
-                    <div><div class="stat-value" id="stat-levantados">0</div><div class="stat-label">Levantados</div></div>
+                    <div>
+                        <div class="stat-value" id="stat-levantados">0</div>
+                        <div class="stat-label">Levantados</div>
+                    </div>
                 </div>
-                 <div class="stat-card">
+                <div class="stat-card">
                     <i data-lucide="building-2" style="color: #3B82F6"></i>
-                    <div><div class="stat-value" id="stat-propriedades">0</div><div class="stat-label">Propriedades</div></div>
+                    <div>
+                        <div class="stat-value" id="stat-propriedades">0</div>
+                        <div class="stat-label">Propriedades</div>
+                    </div>
                 </div>
-                 <div class="stat-card">
+                <div class="stat-card">
                     <i data-lucide="users" style="color: #F59E0B"></i>
-                    <div><div class="stat-value" id="stat-clientes">0</div><div class="stat-label">Clientes</div></div>
+                    <div>
+                        <div class="stat-value" id="stat-clientes">0</div>
+                        <div class="stat-label">Clientes</div>
+                    </div>
                 </div>
             </div>
 
             <div class="content-body">
                 <!-- MAPA: Camada base, SEMPRE renderizada -->
                 <div id="map"></div>
-                
+
                 <!-- PAINÉIS: Sobrepõem o mapa quando ativos -->
                 <div id="panel-marcos" class="content-panel">
                     <div style="padding: 20px;">
@@ -173,23 +297,31 @@
                             <input type="text" id="busca-marcos" class="input" placeholder="Buscar..." style="flex:1;">
                             <button class="btn btn-secondary" id="btn-buscar-marcos">Buscar</button>
                         </div>
-                        <div id="marcos-grid" style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));"></div>
-                        <div id="marcos-pagination" style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
-                            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
-                                <button id="prev-page" onclick="paginaAnterior()" class="btn btn-secondary" style="min-width: 100px;">
+                        <div id="marcos-grid"
+                            style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+                        </div>
+                        <div id="marcos-pagination"
+                            style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                            <div
+                                style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                <button id="prev-page" onclick="paginaAnterior()" class="btn btn-secondary"
+                                    style="min-width: 100px;">
                                     <i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Anterior
                                 </button>
                                 <div style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
                                     <span>Página</span>
-                                    <span id="current-page" style="font-weight: 700; color: var(--cogep-green);">1</span>
+                                    <span id="current-page"
+                                        style="font-weight: 700; color: var(--cogep-green);">1</span>
                                     <span>de</span>
                                     <span id="total-pages" style="font-weight: 600;">1</span>
                                 </div>
-                                <button id="next-page" onclick="proximaPagina()" class="btn btn-secondary" style="min-width: 100px;">
+                                <button id="next-page" onclick="proximaPagina()" class="btn btn-secondary"
+                                    style="min-width: 100px;">
                                     Próxima <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
                                 </button>
                             </div>
-                            <div style="text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-secondary);">
+                            <div
+                                style="text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-secondary);">
                                 Total: <span id="total-records" style="font-weight: 600;">0</span> marcos
                             </div>
                         </div>
@@ -199,31 +331,38 @@
                 <div id="panel-importar" class="content-panel">
                     <div style="padding: 40px; max-width: 600px; margin: 0 auto;">
                         <h2 style="text-align: center; margin-bottom: 30px;">
-                            <i data-lucide="file-text" style="width:32px;height:32px;vertical-align:middle;margin-right:10px;"></i>
+                            <i data-lucide="file-text"
+                                style="width:32px;height:32px;vertical-align:middle;margin-right:10px;"></i>
                             Importar Memorial Descritivo
                         </h2>
-                        
+
                         <!-- Área de Upload (inicial) -->
-                        <div id="upload-area-docx" class="upload-area" style="cursor:pointer; border:2px dashed var(--border-primary); padding:50px; border-radius:12px; text-align:center; background:var(--bg-secondary); transition: all 0.3s;">
-                            <i data-lucide="upload-cloud" style="width:64px;height:64px;color:var(--cogep-green);margin-bottom:15px;"></i>
+                        <div id="upload-area-docx" class="upload-area"
+                            style="cursor:pointer; border:2px dashed var(--border-primary); padding:50px; border-radius:12px; text-align:center; background:var(--bg-secondary); transition: all 0.3s;">
+                            <i data-lucide="upload-cloud"
+                                style="width:64px;height:64px;color:var(--cogep-green);margin-bottom:15px;"></i>
                             <h3 style="margin:0 0 10px 0;">Clique para Selecionar DOCX</h3>
                             <p style="color:var(--text-secondary);margin:0;">ou arraste o arquivo aqui</p>
-                            <p style="font-size:12px;color:var(--text-tertiary);margin-top:15px;">Formatos aceitos: .DOC, .DOCX</p>
+                            <p style="font-size:12px;color:var(--text-tertiary);margin-top:15px;">Formatos aceitos:
+                                .DOC, .DOCX</p>
                             <input type="file" id="file-input-docx" accept=".doc,.docx" style="display:none;">
                         </div>
-                        
+
                         <!-- Área de Preview (após seleção) -->
-                        <div id="preview-area-docx" style="display:none; border:1px solid var(--border-primary); padding:30px; border-radius:12px; text-align:center; background:var(--bg-secondary);">
-                            <i data-lucide="file-check" style="width:48px;height:48px;color:var(--cogep-green);margin-bottom:15px;"></i>
+                        <div id="preview-area-docx"
+                            style="display:none; border:1px solid var(--border-primary); padding:30px; border-radius:12px; text-align:center; background:var(--bg-secondary);">
+                            <i data-lucide="file-check"
+                                style="width:48px;height:48px;color:var(--cogep-green);margin-bottom:15px;"></i>
                             <h3 id="file-name-docx" style="margin:0 0 10px 0;">arquivo.docx</h3>
                             <p style="color:var(--text-secondary);margin:0;">Pronto para processamento</p>
                         </div>
-                        
+
                         <!-- Área de Status/Feedback -->
                         <div id="docx-status" style="margin-top:20px;"></div>
-                        
+
                         <!-- Informações -->
-                        <div style="margin-top:30px; padding:20px; background:var(--bg-tertiary); border-radius:8px; font-size:14px;">
+                        <div
+                            style="margin-top:30px; padding:20px; background:var(--bg-tertiary); border-radius:8px; font-size:14px;">
                             <h4 style="margin:0 0 10px 0; display:flex; align-items:center; gap:8px;">
                                 <i data-lucide="info" style="width:18px;height:18px;"></i>
                                 O que será extraído:
@@ -239,24 +378,24 @@
 
                 <div id="panel-propriedades" class="content-panel">
                     <div style="padding: 20px;">
-                         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                             <h2>Propriedades</h2>
                             <button class="btn btn-primary" id="btn-nova-prop">Nova Propriedade</button>
-                         </div>
-                         <div id="propriedades-grid"></div>
+                        </div>
+                        <div id="propriedades-grid"></div>
                     </div>
                 </div>
-                
+
                 <div id="panel-clientes" class="content-panel">
-                     <div style="padding: 20px;">
-                         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <div style="padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                             <h2>Clientes</h2>
                             <button class="btn btn-primary" id="btn-novo-cliente">Novo Cliente</button>
-                         </div>
-                         <div id="clientes-grid"></div>
+                        </div>
+                        <div id="clientes-grid"></div>
                     </div>
                 </div>
-                
+
                 <div id="panel-historico" class="content-panel">
                     <div style="padding: 20px;">
                         <h2>Histórico</h2>
@@ -271,16 +410,19 @@
     <div id="modal-importar-csv" class="modal">
         <div class="modal-backdrop"></div>
         <div class="modal-container">
-            <div class="modal-header"><h2>Importar CSV</h2><button class="btn-icon close-modal">×</button></div>
+            <div class="modal-header">
+                <h2>Importar CSV</h2><button class="btn-icon close-modal">×</button>
+            </div>
             <div class="modal-body">
                 <div id="painel-upload">
-                    <div class="upload-area" id="drop-zone-csv" style="padding:40px; border:2px dashed #ccc; text-align:center;">
+                    <div class="upload-area" id="drop-zone-csv"
+                        style="padding:40px; border:2px dashed #ccc; text-align:center;">
                         <p>Selecionar Arquivo</p>
                         <input type="file" id="file-input-importar" accept=".csv,.xlsx" style="display:none;">
                     </div>
                     <div id="nome-arquivo-csv" style="display:none; margin-top:20px;"></div>
                     <div style="margin-top:20px;">
-                         <label><input type="checkbox" id="check-simulacao" checked> Modo Simulação</label>
+                        <label><input type="checkbox" id="check-simulacao" checked> Modo Simulação</label>
                     </div>
                 </div>
                 <div id="resultado-importacao-planilha" style="display:none;"></div>
@@ -291,16 +433,292 @@
             </div>
         </div>
     </div>
-    
-    <div id="modal-novo-marco" class="modal"><div class="modal-backdrop"></div><div class="modal-container"><div class="modal-header"><h2>Novo Marco</h2><button class="btn-icon close-modal">×</button></div><div class="modal-body"><form id="form-novo-marco"><div class="form-group"><label>Código</label><input type="text" id="marco-codigo" class="input"></div></form></div><div class="modal-footer"><button class="btn btn-primary" id="btn-salvar-marco">Salvar</button></div></div></div>
-    <div id="modal-nova-propriedade" class="modal"><div class="modal-backdrop"></div><div class="modal-container"><div class="modal-header"><h2>Nova Propriedade</h2><button class="btn-icon close-modal">×</button></div><div class="modal-body"><form id="form-nova-propriedade"><div class="form-group"><label>Nome</label><input type="text" id="prop-nome" class="input"></div></form></div><div class="modal-footer"><button class="btn btn-primary" id="btn-salvar-prop">Salvar</button></div></div></div>
-    <div id="modal-novo-cliente" class="modal"><div class="modal-backdrop"></div><div class="modal-container"><div class="modal-header"><h2>Novo Cliente</h2><button class="btn-icon close-modal">×</button></div><div class="modal-body"><form id="form-novo-cliente"><div class="form-group"><label>Nome</label><input type="text" id="cliente-nome" class="input"></div></form></div><div class="modal-footer"><button class="btn btn-primary" id="btn-salvar-cliente">Salvar</button></div></div></div>
+
+    <div id="modal-novo-marco" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="fecharModal('modal-novo-marco')"></div>
+        <div class="modal-container" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i data-lucide="plus-circle"></i>
+                    Novo Marco Geodésico
+                </h2>
+                <button class="btn-icon close-modal" onclick="fecharModal('modal-novo-marco')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form id="form-novo-marco" onsubmit="return false;">
+                <div class="modal-body">
+                    <!-- Tipo e Código -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Tipo de Marco *</label>
+                            <select name="tipo" class="input" required>
+                                <option value="">Selecione o tipo</option>
+                                <option value="V">V - Vértice (Divisa)</option>
+                                <option value="M">M - Marco de Referência</option>
+                                <option value="P">P - Ponto Auxiliar</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Código *</label>
+                            <input type="text" name="codigo" class="input" placeholder="Ex: FHV-M-0001" required>
+                        </div>
+                    </div>
+
+                    <!-- Localização -->
+                    <div class="form-group">
+                        <label class="form-label">Localização *</label>
+                        <input type="text" name="localizacao" class="input" placeholder="Ex: ITESP - Reage Brasil"
+                            required>
+                    </div>
+
+                    <!-- Município e Estado -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Município *</label>
+                            <input type="text" name="municipio" class="input" placeholder="Ex: Curitiba" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado *</label>
+                            <select name="estado" class="input" required>
+                                <option value="PR" selected>Paraná</option>
+                                <option value="SP">São Paulo</option>
+                                <option value="SC">Santa Catarina</option>
+                                <option value="RS">Rio Grande do Sul</option>
+                                <option value="MG">Minas Gerais</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Coordenadas UTM -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Coord. E (m) *</label>
+                            <input type="number" name="coordenada_e" class="input" placeholder="687234.56" step="0.01"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Coord. N (m) *</label>
+                            <input type="number" name="coordenada_n" class="input" placeholder="7123456.78" step="0.01"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Altitude (m)</label>
+                            <input type="number" name="altitude" class="input" placeholder="830.43" step="0.001">
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="form-group">
+                        <label class="form-label">Observações</label>
+                        <textarea name="observacoes" class="input" rows="2"
+                            placeholder="Informações adicionais..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModal('modal-novo-marco')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" onclick="salvarNovoMarco(event)">
+                        <i data-lucide="check"></i> Criar Marco
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="modal-nova-propriedade" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="fecharModal('modal-nova-propriedade')"></div>
+        <div class="modal-container" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i data-lucide="building-2"></i>
+                    Nova Propriedade
+                </h2>
+                <button class="btn-icon close-modal" onclick="fecharModal('modal-nova-propriedade')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form id="form-nova-propriedade" onsubmit="salvarNovaPropriedade(event)">
+                <div class="modal-body">
+                    <!-- Cliente -->
+                    <div class="form-group">
+                        <label class="form-label">Cliente</label>
+                        <select class="input" id="nova-prop-cliente" name="cliente_id">
+                            <option value="">Selecione o cliente (opcional)</option>
+                        </select>
+                    </div>
+
+                    <!-- Nome da Propriedade -->
+                    <div class="form-group">
+                        <label class="form-label">Nome da Propriedade *</label>
+                        <input type="text" class="input" id="nova-prop-nome" name="nome_propriedade"
+                            placeholder="Ex: Fazenda Santa Rita" required>
+                    </div>
+
+                    <!-- Matrícula e Tipo -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Matrícula *</label>
+                            <input type="text" class="input" id="nova-prop-matricula" name="matricula"
+                                placeholder="Ex: 12.345" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tipo *</label>
+                            <select class="input" id="nova-prop-tipo" name="tipo" required>
+                                <option value="">Selecione...</option>
+                                <option value="RURAL">Rural</option>
+                                <option value="URBANA">Urbana</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Município, Comarca, UF -->
+                    <div style="display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Município *</label>
+                            <input type="text" class="input" id="nova-prop-municipio" name="municipio"
+                                placeholder="Ex: Campo Largo" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Comarca *</label>
+                            <input type="text" class="input" id="nova-prop-comarca" name="comarca"
+                                placeholder="Ex: Campo Largo" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">UF *</label>
+                            <select class="input" id="nova-prop-uf" name="uf" required>
+                                <option value="PR" selected>PR</option>
+                                <option value="SC">SC</option>
+                                <option value="RS">RS</option>
+                                <option value="SP">SP</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Área e Perímetro -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Área (m²)</label>
+                            <input type="number" step="0.01" class="input" id="nova-prop-area" name="area_m2"
+                                placeholder="Ex: 50000.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Perímetro (m)</label>
+                            <input type="number" step="0.01" class="input" id="nova-prop-perimetro" name="perimetro_m"
+                                placeholder="Ex: 900.50">
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="form-group">
+                        <label class="form-label">Observações</label>
+                        <textarea class="input" id="nova-prop-observacoes" name="observacoes" rows="2"
+                            placeholder="Informações adicionais..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModal('modal-nova-propriedade')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="check"></i> Cadastrar Propriedade
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="modal-novo-cliente" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="fecharModal('modal-novo-cliente')"></div>
+        <div class="modal-container" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i data-lucide="user-plus"></i>
+                    Novo Cliente
+                </h2>
+                <button class="btn-icon close-modal" onclick="fecharModal('modal-novo-cliente')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <form id="form-novo-cliente" onsubmit="salvarNovoCliente(event)">
+                <div class="modal-body">
+                    <!-- Tipo de Pessoa -->
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Pessoa *</label>
+                        <div style="display: flex; gap: 20px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="tipo_pessoa" value="fisica" checked>
+                                <span>Pessoa Física</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="tipo_pessoa" value="juridica">
+                                <span>Pessoa Jurídica</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Nome -->
+                    <div class="form-group">
+                        <label class="form-label">Nome Completo / Razão Social *</label>
+                        <input type="text" class="input" id="novo-cliente-nome" name="nome"
+                            placeholder="Ex: João Silva ou Empresa XYZ Ltda" required>
+                    </div>
+
+                    <!-- CPF/CNPJ -->
+                    <div class="form-group">
+                        <label class="form-label">CPF / CNPJ</label>
+                        <input type="text" class="input" id="novo-cliente-cpf-cnpj" name="cpf_cnpj"
+                            placeholder="000.000.000-00 ou 00.000.000/0000-00">
+                    </div>
+
+                    <!-- Email e Telefone -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="input" id="novo-cliente-email" name="email"
+                                placeholder="cliente@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefone</label>
+                            <input type="tel" class="input" id="novo-cliente-telefone" name="telefone"
+                                placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
+
+                    <!-- Endereço -->
+                    <div class="form-group">
+                        <label class="form-label">Endereço Completo</label>
+                        <textarea class="input" id="novo-cliente-endereco" name="endereco" rows="2"
+                            placeholder="Rua, número, bairro, cidade..."></textarea>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="form-group">
+                        <label class="form-label">Observações</label>
+                        <textarea class="input" id="novo-cliente-observacoes" name="observacoes" rows="2"
+                            placeholder="Informações adicionais..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModal('modal-novo-cliente')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="check"></i> Criar Cliente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div id="toast-container"></div>
 
     <script src="script.js"></script>
     <script src="script-poligonos.js"></script>
     <script src="js/modules/importador.js"></script>
+    <script src="js/modules/modals-crud.js"></script>
 
     <script>
         // ==========================================
@@ -310,23 +728,23 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log("🛠️ Interface V4 (Mapa Persistente)...");
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
 
             const botoes = document.querySelectorAll('.nav-link[data-view]');
             const paineis = document.querySelectorAll('.content-panel');
 
             function ativarView(idAlvo) {
                 console.log(`🔄 Navegando para: ${idAlvo}`);
-                
+
                 // Atualiza botões
                 botoes.forEach(b => b.classList.remove('active'));
                 const btnAtivo = document.querySelector(`.nav-link[data-view="${idAlvo}"]`);
-                if(btnAtivo) btnAtivo.classList.add('active');
+                if (btnAtivo) btnAtivo.classList.add('active');
 
                 // Se for MAPA: esconde todos os painéis e mostra o mapa
                 if (idAlvo === 'mapa') {
                     paineis.forEach(p => p.classList.remove('active'));
-                    
+
                     // Inicializa mapa se necessário
                     if (!mapaInicializado && typeof window.carregarMapa === 'function') {
                         window.carregarMapa();
@@ -337,13 +755,13 @@
                 } else {
                     // Esconde todos os painéis primeiro
                     paineis.forEach(p => p.classList.remove('active'));
-                    
+
                     // Mostra o painel correspondente
                     const painel = document.getElementById('panel-' + idAlvo);
                     if (painel) {
                         painel.classList.add('active');
                     }
-                    
+
                     // Lazy load de dados
                     if (idAlvo === 'marcos' && window.carregarMarcosLista) window.carregarMarcosLista();
                     if (idAlvo === 'propriedades' && window.carregarPropriedadesLista) window.carregarPropriedadesLista();
@@ -363,7 +781,7 @@
             document.body.addEventListener('click', (e) => {
                 const target = e.target;
                 if (target.classList.contains('modal-backdrop') || target.closest('.close-modal')) {
-                    const modal = target.closest('.modal'); if(modal) modal.style.display = 'none';
+                    const modal = target.closest('.modal'); if (modal) modal.style.display = 'none';
                 }
                 if (target.matches('#btn-novo-marco') || target.closest('#btn-novo-marco')) {
                     document.getElementById('modal-novo-marco').style.display = 'flex';
@@ -391,38 +809,39 @@
 
             // Input handlers
             const fileInputCsv = document.getElementById('file-input-importar');
-            if(fileInputCsv) fileInputCsv.addEventListener('change', function() { if(this.files[0] && window.csvSelecionado) window.csvSelecionado(this); });
-            
+            if (fileInputCsv) fileInputCsv.addEventListener('change', function () { if (this.files[0] && window.csvSelecionado) window.csvSelecionado(this); });
+
             const btnExec = document.getElementById('btn-executar-importacao');
-            if(btnExec) btnExec.addEventListener('click', () => { if(window.importarPlanilhaMarcos) window.importarPlanilhaMarcos(); });
-            
+            if (btnExec) btnExec.addEventListener('click', () => { if (window.importarPlanilhaMarcos) window.importarPlanilhaMarcos(); });
+
             const docxArea = document.getElementById('upload-area-docx');
-            if(docxArea) docxArea.addEventListener('click', () => document.getElementById('file-input-docx').click());
-            
+            if (docxArea) docxArea.addEventListener('click', () => document.getElementById('file-input-docx').click());
+
             // ========== BUSCA DE MARCOS ==========
             const buscaInput = document.getElementById('busca-marcos');
             const btnBuscar = document.getElementById('btn-buscar-marcos');
-            
+
             // Busca ao clicar no botão
-            if(btnBuscar) {
+            if (btnBuscar) {
                 btnBuscar.addEventListener('click', () => {
-                    if(window.carregarMarcosLista) window.carregarMarcosLista(1);
+                    if (window.carregarMarcosLista) window.carregarMarcosLista(1);
                 });
             }
-            
+
             // Busca ao pressionar Enter no campo
-            if(buscaInput) {
+            if (buscaInput) {
                 buscaInput.addEventListener('keydown', (e) => {
-                    if(e.key === 'Enter') {
+                    if (e.key === 'Enter') {
                         e.preventDefault();
-                        if(window.carregarMarcosLista) window.carregarMarcosLista(1);
+                        if (window.carregarMarcosLista) window.carregarMarcosLista(1);
                     }
                 });
             }
-            
+
             const fileInputDocx = document.getElementById('file-input-docx');
-            if(fileInputDocx) fileInputDocx.addEventListener('change', (e) => { if(window.handleFileSelectDOCX) window.handleFileSelectDOCX(e); });
+            if (fileInputDocx) fileInputDocx.addEventListener('change', (e) => { if (window.handleFileSelectDOCX) window.handleFileSelectDOCX(e); });
         });
     </script>
 </body>
+
 </html>
