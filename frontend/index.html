@@ -174,7 +174,25 @@
                             <button class="btn btn-secondary" id="btn-buscar-marcos">Buscar</button>
                         </div>
                         <div id="marcos-grid" style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));"></div>
-                        <div id="marcos-pagination" style="margin-top: 20px; text-align: center;"></div>
+                        <div id="marcos-pagination" style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                <button id="prev-page" onclick="paginaAnterior()" class="btn btn-secondary" style="min-width: 100px;">
+                                    <i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Anterior
+                                </button>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                    <span>Página</span>
+                                    <span id="current-page" style="font-weight: 700; color: var(--cogep-green);">1</span>
+                                    <span>de</span>
+                                    <span id="total-pages" style="font-weight: 600;">1</span>
+                                </div>
+                                <button id="next-page" onclick="proximaPagina()" class="btn btn-secondary" style="min-width: 100px;">
+                                    Próxima <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+                                </button>
+                            </div>
+                            <div style="text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-secondary);">
+                                Total: <span id="total-records" style="font-weight: 600;">0</span> marcos
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -380,6 +398,27 @@
             
             const docxArea = document.getElementById('upload-area-docx');
             if(docxArea) docxArea.addEventListener('click', () => document.getElementById('file-input-docx').click());
+            
+            // ========== BUSCA DE MARCOS ==========
+            const buscaInput = document.getElementById('busca-marcos');
+            const btnBuscar = document.getElementById('btn-buscar-marcos');
+            
+            // Busca ao clicar no botão
+            if(btnBuscar) {
+                btnBuscar.addEventListener('click', () => {
+                    if(window.carregarMarcosLista) window.carregarMarcosLista(1);
+                });
+            }
+            
+            // Busca ao pressionar Enter no campo
+            if(buscaInput) {
+                buscaInput.addEventListener('keydown', (e) => {
+                    if(e.key === 'Enter') {
+                        e.preventDefault();
+                        if(window.carregarMarcosLista) window.carregarMarcosLista(1);
+                    }
+                });
+            }
             
             const fileInputDocx = document.getElementById('file-input-docx');
             if(fileInputDocx) fileInputDocx.addEventListener('change', (e) => { if(window.handleFileSelectDOCX) window.handleFileSelectDOCX(e); });
