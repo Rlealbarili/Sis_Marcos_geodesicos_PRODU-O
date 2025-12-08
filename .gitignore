@@ -40,3 +40,6 @@ uploads/
 
 # OS generated files
 Thumbs.db
+
+.gemini/
+gha-creds-*.json

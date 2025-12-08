@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+const fs = require('fs');
+const path = require('path');
+const targetFile = path.join(__dirname, '../frontend/index.html');
+
+console.log(`🏗️ EXECUTANDO CORREÇÃO ARQUITETURAL (MAPA SEMPRE VISÍVEL) EM: ${targetFile}`);
+
+// SOLUÇÃO: O mapa vive FORA do sistema de abas.
+// A aba "Mapa" apenas mostra o mapa, MAS o mapa é uma camada independente.
+const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
@@ -267,11 +275,11 @@
             const paineis = document.querySelectorAll('.content-panel');
 
             function ativarView(idAlvo) {
-                console.log(`🔄 Navegando para: ${idAlvo}`);
+                console.log(\`🔄 Navegando para: \${idAlvo}\`);
                 
                 // Atualiza botões
                 botoes.forEach(b => b.classList.remove('active'));
-                const btnAtivo = document.querySelector(`.nav-link[data-view="${idAlvo}"]`);
+                const btnAtivo = document.querySelector(\`.nav-link[data-view="\${idAlvo}"]\`);
                 if(btnAtivo) btnAtivo.classList.add('active');
 
                 // Se for MAPA: esconde todos os painéis e mostra o mapa
@@ -355,4 +363,11 @@
         });
     </script>
 </body>
-</html>
+</html>`;
+
+try {
+    fs.writeFileSync(targetFile, htmlContent, 'utf8');
+    console.log('✅ SUCESSO: index.html reconstruído V4 (Mapa Persistente)');
+} catch (err) {
+    console.error('❌ ERRO AO SALVAR:', err);
+}

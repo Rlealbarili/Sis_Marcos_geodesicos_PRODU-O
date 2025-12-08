@@ -1,4 +1,10 @@
-<!DOCTYPE html>
+const fs = require('fs');
+const path = require('path');
+const targetFile = path.join(__dirname, '../frontend/index.html');
+
+console.log(`🏗️ EXECUTANDO FIX MAPA REGRESSION EM: ${targetFile}`);
+
+const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +16,7 @@
         console.log('🌐 API_URL:', window.API_URL);
     </script>
 
+    <!-- Libs -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="styles/design-system.css">
     <link rel="stylesheet" href="styles/components.css">
@@ -60,31 +67,18 @@
         .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--text-primary); }
         .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
 
-        .content-body { flex: 1; position: relative; overflow: hidden; }
+        .content-body { flex: 1; position: relative; overflow-y: auto; }
         
-        /* MAPA: Sempre presente, mas pode ser sobreposto */
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
+        /* 1. CORREÇÃO CSS: Blindagem de Altura do Mapa */
+        #map, .map-container {
+            height: 85vh !important;
             width: 100%;
-            height: 100%;
-            z-index: 1;
+            min-height: 500px;
+            display: block;
         }
         
-        /* Painéis de conteúdo: Sobrepõem o mapa */
-        .content-panel {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg-primary);
-            z-index: 5; /* Acima do mapa */
-            display: none;
-            overflow-y: auto;
-        }
-        .content-panel.active { display: block; animation: fadeIn 0.3s ease; }
+        .tab-content { display: none; height: 100%; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; justify-content: center; align-items: center; }
         .modal.active { display: flex; }
@@ -108,7 +102,7 @@
             </div>
             
             <div class="sidebar-menu">
-                <a href="#" class="nav-link active" data-view="mapa">
+                <a href="#" class="nav-link" data-view="mapa">
                      <i data-lucide="map"></i> <span>Mapa</span>
                 </a>
                 <a href="#" class="nav-link" data-view="marcos">
@@ -158,11 +152,11 @@
             </div>
 
             <div class="content-body">
-                <!-- MAPA: Camada base, SEMPRE renderizada -->
-                <div id="map"></div>
+                <div id="mapa" class="tab-content active">
+                    <div id="map"></div>
+                </div>
                 
-                <!-- PAINÉIS: Sobrepõem o mapa quando ativos -->
-                <div id="panel-marcos" class="content-panel">
+                <div id="marcos" class="tab-content">
                     <div style="padding: 20px;">
                         <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                             <h2>Gerenciar Marcos</h2>
@@ -178,7 +172,7 @@
                     </div>
                 </div>
 
-                <div id="panel-importar" class="content-panel">
+                <div id="importar" class="tab-content">
                     <div style="padding: 40px; text-align: center;">
                         <h2>Importar Memorial (DOCX)</h2>
                         <div id="upload-area-docx" class="upload-area" style="margin-top:20px; cursor:pointer; border:2px dashed #ccc; padding:40px;">
@@ -186,10 +180,11 @@
                             <h3>Clique para Selecionar DOCX</h3>
                             <input type="file" id="file-input-docx" accept=".docx" style="display:none;">
                         </div>
+                        <div id="preview-area-docx" style="display:none; margin-top:20px;"></div>
                     </div>
                 </div>
 
-                <div id="panel-propriedades" class="content-panel">
+                <div id="propriedades" class="tab-content">
                     <div style="padding: 20px;">
                          <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                             <h2>Propriedades</h2>
@@ -199,7 +194,7 @@
                     </div>
                 </div>
                 
-                <div id="panel-clientes" class="content-panel">
+                <div id="clientes" class="tab-content">
                      <div style="padding: 20px;">
                          <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                             <h2>Clientes</h2>
@@ -209,7 +204,7 @@
                     </div>
                 </div>
                 
-                <div id="panel-historico" class="content-panel">
+                <div id="historico" class="tab-content">
                     <div style="padding: 20px;">
                         <h2>Histórico</h2>
                         <div id="lista-historico"></div>
@@ -255,104 +250,114 @@
 
     <script>
         // ==========================================
-        // LÓGICA DE INTERFACE V4 (MAPA PERSISTENTE)
+        // JS PATCH: SINGLETON MAP INITIALIZATION
         // ==========================================
+        
+        // Variável de controle (Singleton)
         let mapaInicializado = false;
 
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("🛠️ Interface V4 (Mapa Persistente)...");
+            console.log("🛠️ Inicializando v3.1 (Map Fix)...");
+
             if(typeof lucide !== 'undefined') lucide.createIcons();
 
             const botoes = document.querySelectorAll('.nav-link[data-view]');
-            const paineis = document.querySelectorAll('.content-panel');
+            const secoes = document.querySelectorAll('.tab-content');
 
-            function ativarView(idAlvo) {
-                console.log(`🔄 Navegando para: ${idAlvo}`);
+            function ativarAba(idAlvo) {
+                // 1. Esconde tudo
+                secoes.forEach(sec => sec.style.display = 'none');
+                secoes.forEach(sec => sec.classList.remove('active'));
                 
-                // Atualiza botões
-                botoes.forEach(b => b.classList.remove('active'));
-                const btnAtivo = document.querySelector(`.nav-link[data-view="${idAlvo}"]`);
-                if(btnAtivo) btnAtivo.classList.add('active');
+                // 2. Mostra o alvo
+                const alvo = document.getElementById(idAlvo);
+                if (alvo) {
+                    alvo.style.display = 'block';
+                    alvo.classList.add('active');
+                    console.log(\`✅ Aba ativa: \${idAlvo}\`);
+                    
+                    // --- MAP FIX: SINGLETON PATTERN ---
+                    if (idAlvo === 'mapa') {
+                        if (!mapaInicializado && typeof window.carregarMapa === 'function') {
+                            window.carregarMapa();
+                            mapaInicializado = true;
+                        } else if (window.map && typeof window.map.invalidateSize === 'function') {
+                            setTimeout(() => { window.map.invalidateSize(); }, 200);
+                        }
+                    }
+                    // ----------------------------------
 
-                // Se for MAPA: esconde todos os painéis e mostra o mapa
-                if (idAlvo === 'mapa') {
-                    paineis.forEach(p => p.classList.remove('active'));
-                    
-                    // Inicializa mapa se necessário
-                    if (!mapaInicializado && typeof window.carregarMapa === 'function') {
-                        window.carregarMapa();
-                        mapaInicializado = true;
-                    } else if (window.map && typeof window.map.invalidateSize === 'function') {
-                        setTimeout(() => window.map.invalidateSize(), 100);
-                    }
-                } else {
-                    // Esconde todos os painéis primeiro
-                    paineis.forEach(p => p.classList.remove('active'));
-                    
-                    // Mostra o painel correspondente
-                    const painel = document.getElementById('panel-' + idAlvo);
-                    if (painel) {
-                        painel.classList.add('active');
-                    }
-                    
-                    // Lazy load de dados
                     if (idAlvo === 'marcos' && window.carregarMarcosLista) window.carregarMarcosLista();
                     if (idAlvo === 'propriedades' && window.carregarPropriedadesLista) window.carregarPropriedadesLista();
                     if (idAlvo === 'clientes' && window.carregarClientes) window.carregarClientes();
+                } else {
+                    console.error(\`❌ Erro: Seção #\${idAlvo} não encontrada no HTML.\`);
                 }
             }
 
-            // Event Listeners de Navegação
+            // Event Listeners
             botoes.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    ativarView(btn.getAttribute('data-view'));
+                    botoes.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    ativarAba(btn.getAttribute('data-view'));
                 });
             });
 
-            // Delegação de eventos para modais e botões
+            // Modal & Global Listeners
             document.body.addEventListener('click', (e) => {
                 const target = e.target;
                 if (target.classList.contains('modal-backdrop') || target.closest('.close-modal')) {
-                    const modal = target.closest('.modal'); if(modal) modal.style.display = 'none';
+                    const modal = target.closest('.modal');
+                    if(modal) modal.style.display = 'none';
                 }
                 if (target.matches('#btn-novo-marco') || target.closest('#btn-novo-marco')) {
-                    document.getElementById('modal-novo-marco').style.display = 'flex';
+                    const m = document.getElementById('modal-novo-marco'); if(m) m.style.display = 'flex';
                 }
                 if (target.matches('#btn-import-csv') || target.closest('#btn-import-csv')) {
-                    document.getElementById('modal-importar-csv').style.display = 'flex';
+                     const m = document.getElementById('modal-importar-csv'); if(m) m.style.display = 'flex';
                 }
                 if (target.matches('#btn-nova-prop') || target.closest('#btn-nova-prop')) {
-                    document.getElementById('modal-nova-propriedade').style.display = 'flex';
+                     const m = document.getElementById('modal-nova-propriedade'); if(m) m.style.display = 'flex';
                 }
-                if (target.matches('#btn-novo-cliente') || target.closest('#btn-novo-cliente')) {
-                    document.getElementById('modal-novo-cliente').style.display = 'flex';
+                 if (target.matches('#btn-novo-cliente') || target.closest('#btn-novo-cliente')) {
+                     const m = document.getElementById('modal-novo-cliente'); if(m) m.style.display = 'flex';
                 }
                 if (target.matches('#drop-zone-csv') || target.closest('#drop-zone-csv')) {
                     document.getElementById('file-input-importar').click();
                 }
-                if (target.closest('#mobile-menu-btn')) {
+                 if (target.closest('#mobile-menu-btn')) {
                     document.querySelector('.sidebar').classList.toggle('active');
                 }
                 if (target.closest('#theme-btn')) {
                     const current = document.documentElement.getAttribute('data-theme');
-                    document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+                    const next = current === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', next);
+                    localStorage.setItem('theme', next);
                 }
             });
-
-            // Input handlers
-            const fileInputCsv = document.getElementById('file-input-importar');
-            if(fileInputCsv) fileInputCsv.addEventListener('change', function() { if(this.files[0] && window.csvSelecionado) window.csvSelecionado(this); });
             
+             const fileInputCsv = document.getElementById('file-input-importar');
+            if(fileInputCsv) {
+                fileInputCsv.addEventListener('change', function() { if(this.files && this.files[0]) if(window.csvSelecionado) window.csvSelecionado(this); });
+            }
             const btnExec = document.getElementById('btn-executar-importacao');
-            if(btnExec) btnExec.addEventListener('click', () => { if(window.importarPlanilhaMarcos) window.importarPlanilhaMarcos(); });
-            
+            if(btnExec) {
+                btnExec.addEventListener('click', () => { if(window.importarPlanilhaMarcos) window.importarPlanilhaMarcos(); });
+            }
             const docxArea = document.getElementById('upload-area-docx');
-            if(docxArea) docxArea.addEventListener('click', () => document.getElementById('file-input-docx').click());
-            
-            const fileInputDocx = document.getElementById('file-input-docx');
-            if(fileInputDocx) fileInputDocx.addEventListener('change', (e) => { if(window.handleFileSelectDOCX) window.handleFileSelectDOCX(e); });
+             if(docxArea) docxArea.addEventListener('click', () => document.getElementById('file-input-docx').click());
+             const fileInputDocx = document.getElementById('file-input-docx');
+             if(fileInputDocx) fileInputDocx.addEventListener('change', (e) => { if(window.handleFileSelectDOCX) window.handleFileSelectDOCX(e); });
         });
     </script>
 </body>
-</html>
+</html>`;
+
+try {
+    fs.writeFileSync(targetFile, htmlContent, 'utf8');
+    console.log('✅ SUCESSO: index.html corrigido (Fix Mapa V3.1)');
+} catch (err) {
+    console.error('❌ ERRO AO SALVAR:', err);
+}
