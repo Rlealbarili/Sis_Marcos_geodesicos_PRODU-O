@@ -141,7 +141,7 @@ window.salvarNovoMarco = async function (event) {
 };
 
 // ========================================
-// SALVAR NOVA PROPRIEDADE
+// SALVAR NOVA PROPRIEDADE (ou ATUALIZAR se editando)
 // ========================================
 window.salvarNovaPropriedade = async function (event) {
     if (event) event.preventDefault();
@@ -160,6 +160,10 @@ window.salvarNovaPropriedade = async function (event) {
         return;
     }
 
+    // Verificar se está editando
+    const propriedadeEmEdicao = typeof window.getPropriedadeEmEdicao === 'function' ? window.getPropriedadeEmEdicao() : null;
+    const isEditing = propriedadeEmEdicao !== null;
+
     // Construir objeto da propriedade
     const propriedade = {
         nome_propriedade: formData.get('nome_propriedade'),
@@ -174,7 +178,7 @@ window.salvarNovaPropriedade = async function (event) {
         cliente_id: formData.get('cliente_id') || null
     };
 
-    console.log('📤 Enviando nova propriedade:', propriedade);
+    console.log(`📤 ${isEditing ? 'Atualizando' : 'Enviando nova'} propriedade:`, propriedade);
 
     // Desabilitar botão durante envio
     const btn = form.querySelector('button[type="submit"]');
@@ -185,8 +189,16 @@ window.salvarNovaPropriedade = async function (event) {
     }
 
     try {
-        const response = await fetch(`${window.API_URL}/api/propriedades`, {
-            method: 'POST',
+        let url = `${window.API_URL}/api/propriedades`;
+        let method = 'POST';
+
+        if (isEditing) {
+            url = `${window.API_URL}/api/propriedades/${propriedadeEmEdicao.id}`;
+            method = 'PUT';
+        }
+
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -195,14 +207,17 @@ window.salvarNovaPropriedade = async function (event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.message || 'Erro ao criar propriedade');
+            throw new Error(error.message || `Erro ao ${isEditing ? 'atualizar' : 'criar'} propriedade`);
         }
 
         const resultado = await response.json();
-        console.log('✅ Propriedade criada:', resultado);
+        console.log(`✅ Propriedade ${isEditing ? 'atualizada' : 'criada'}:`, resultado);
 
         // Sucesso!
-        mostrarToast('success', 'Propriedade criada!', `Propriedade ${propriedade.nome_propriedade} foi adicionada com sucesso.`);
+        mostrarToast('success',
+            isEditing ? 'Propriedade atualizada!' : 'Propriedade criada!',
+            `Propriedade ${propriedade.nome_propriedade} foi ${isEditing ? 'atualizada' : 'adicionada'} com sucesso.`
+        );
 
         // Fechar modal
         fecharModal('modal-nova-propriedade');
@@ -213,8 +228,8 @@ window.salvarNovaPropriedade = async function (event) {
         }
 
     } catch (error) {
-        console.error('❌ Erro ao criar propriedade:', error);
-        mostrarToast('error', 'Erro ao criar propriedade', error.message);
+        console.error(`❌ Erro ao ${isEditing ? 'atualizar' : 'criar'} propriedade:`, error);
+        mostrarToast('error', `Erro ao ${isEditing ? 'atualizar' : 'criar'} propriedade`, error.message);
     } finally {
         if (btn) {
             btn.disabled = false;

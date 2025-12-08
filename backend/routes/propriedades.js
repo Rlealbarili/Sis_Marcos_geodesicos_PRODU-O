@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, pool } = require('../database/postgres-connection');
+const registrarLog = require('../utils/logger');
 
 // ========================================
 // GET /api/propriedades - Listar todas
@@ -169,6 +170,9 @@ router.post('/', async (req, res) => {
             [nome_propriedade, tipoUpper, matricula, municipio, comarca, uf || 'PR', area_m2, perimetro_m, endereco, cliente_id, observacoes]
         );
 
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'CREATE', 'propriedade', result.rows[0].id, `Propriedade criada: ${nome_propriedade}`, req);
+
         res.status(201).json({
             success: true,
             message: 'Propriedade criada com sucesso',
@@ -244,6 +248,9 @@ router.put('/:id', async (req, res) => {
             });
         }
 
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'UPDATE', 'propriedade', id, `Propriedade atualizada: ${result.rows[0].nome_propriedade}`, req);
+
         res.json({
             success: true,
             message: 'Propriedade atualizada com sucesso',
@@ -307,6 +314,9 @@ router.delete('/:id', async (req, res) => {
                 message: 'Propriedade não encontrada'
             });
         }
+
+        // Registrar log de auditoria
+        await registrarLog('Sistema', 'DELETE', 'propriedade', id, `Propriedade excluída: ${result.rows[0].nome_propriedade}`, req);
 
         res.json({
             success: true,
