@@ -608,7 +608,7 @@ app.get('/api/logs-sistema', async (req, res) => {
 app.get('/api/poligonos', async (req, res) => {
     try {
         console.log('[Polígonos] Buscando polígonos para visualização...');
-        
+
         // Busca propriedades com geometria válida
         const result = await query(`
             SELECT
@@ -684,9 +684,9 @@ app.get('/api/poligonos', async (req, res) => {
 
     } catch (error) {
         console.error('[Polígonos] Erro:', error.message);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Erro ao buscar polígonos',
-            message: error.message 
+            message: error.message
         });
     }
 });
@@ -699,13 +699,13 @@ app.get('/api/poligonos', async (req, res) => {
 app.get('/api/propriedades/:id/vertices', async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Primeiro verifica se a propriedade existe
         const propResult = await query(
             'SELECT id, nome_propriedade FROM propriedades WHERE id = $1',
             [id]
         );
-        
+
         if (propResult.rows.length === 0) {
             return res.status(404).json({ error: 'Propriedade não encontrada' });
         }
@@ -964,6 +964,171 @@ app.post('/api/memorial/upload', upload.single('memorial'), async (req, res) => 
             sucesso: false,
             erro: error.message
         });
+    }
+});
+
+// ============================================
+// ROTA DE VERIFICAÇÃO: DETECTAR DUPLICATAS E SOBREPOSIÇÕES
+// ============================================
+app.post('/api/verificar-memorial', async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { propriedade, vertices } = req.body;
+
+        const alertas = [];
+        const duplicatas = [];
+        const sobreposicoes = [];
+
+        // 1. VERIFICAÇÃO DE DUPLICATA POR MATRÍCULA
+        if (propriedade.matricula) {
+            const matriculaCheck = await client.query(
+                `SELECT id, nome_propriedade, matricula, municipio, uf 
+                 FROM propriedades 
+                 WHERE matricula = $1 AND ativo = true`,
+                [propriedade.matricula]
+            );
+
+            if (matriculaCheck.rows.length > 0) {
+                duplicatas.push({
+                    tipo: 'MATRICULA_DUPLICADA',
+                    nivel: 'CRITICO',
+                    mensagem: `Já existe uma propriedade com a matrícula "${propriedade.matricula}"`,
+                    propriedade_existente: matriculaCheck.rows[0]
+                });
+            }
+        }
+
+        // 2. VERIFICAÇÃO DE DUPLICATA POR NOME + MUNICÍPIO
+        if (propriedade.nome_propriedade && propriedade.municipio) {
+            const nomeCheck = await client.query(
+                `SELECT id, nome_propriedade, matricula, municipio, uf, area_m2
+                 FROM propriedades 
+                 WHERE LOWER(nome_propriedade) = LOWER($1) 
+                   AND LOWER(municipio) = LOWER($2)
+                   AND ativo = true`,
+                [propriedade.nome_propriedade, propriedade.municipio]
+            );
+
+            if (nomeCheck.rows.length > 0) {
+                duplicatas.push({
+                    tipo: 'NOME_DUPLICADO',
+                    nivel: 'ALTO',
+                    mensagem: `Já existe "${propriedade.nome_propriedade}" em ${propriedade.municipio}`,
+                    propriedade_existente: nomeCheck.rows[0]
+                });
+            }
+        }
+
+        // 3. VERIFICAÇÃO DE SOBREPOSIÇÃO GEOGRÁFICA (se tiver vértices)
+        if (vertices && vertices.length >= 3) {
+            // Construir polígono temporário a partir dos vértices
+            const pontos = vertices
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(v => `${v.coordenadas.e} ${v.coordenadas.n}`)
+                .join(',');
+
+            // Fechar o anel (adicionar primeiro ponto no final)
+            const primeiroPonto = `${vertices[0].coordenadas.e} ${vertices[0].coordenadas.n}`;
+            const wkt = `POLYGON((${pontos},${primeiroPonto}))`;
+
+            try {
+                // Query de sobreposição com PostGIS
+                const sobreposicaoCheck = await client.query(`
+                    WITH novo_poligono AS (
+                        SELECT ST_SetSRID(ST_GeomFromText($1), 31982) as geom
+                    )
+                    SELECT 
+                        p.id,
+                        p.nome_propriedade,
+                        p.matricula,
+                        p.municipio,
+                        p.uf,
+                        ROUND(ST_Area(ST_Intersection(p.geometry, np.geom))::numeric, 2) as area_intersecao_m2,
+                        ROUND((ST_Area(ST_Intersection(p.geometry, np.geom)) / ST_Area(np.geom) * 100)::numeric, 2) as percentual_sobreposicao
+                    FROM propriedades p, novo_poligono np
+                    WHERE p.geometry IS NOT NULL
+                      AND p.ativo = true
+                      AND ST_IsValid(p.geometry)
+                      AND ST_Intersects(p.geometry, np.geom)
+                      AND ST_Area(ST_Intersection(p.geometry, np.geom)) > 1
+                    ORDER BY percentual_sobreposicao DESC
+                `, [wkt]);
+
+                for (const row of sobreposicaoCheck.rows) {
+                    let nivel = 'BAIXO';
+                    let mensagem = '';
+
+                    if (row.percentual_sobreposicao >= 95) {
+                        nivel = 'CRITICO';
+                        mensagem = `Sobreposição de ${row.percentual_sobreposicao}% - Provável DUPLICATA GEOGRÁFICA`;
+                    } else if (row.percentual_sobreposicao >= 50) {
+                        nivel = 'ALTO';
+                        mensagem = `Sobreposição significativa de ${row.percentual_sobreposicao}%`;
+                    } else if (row.percentual_sobreposicao >= 10) {
+                        nivel = 'MEDIO';
+                        mensagem = `Sobreposição parcial de ${row.percentual_sobreposicao}%`;
+                    } else {
+                        nivel = 'BAIXO';
+                        mensagem = `Sobreposição menor de ${row.percentual_sobreposicao}% (pode ser vizinho)`;
+                    }
+
+                    sobreposicoes.push({
+                        tipo: 'SOBREPOSICAO_GEOGRAFICA',
+                        nivel: nivel,
+                        mensagem: mensagem,
+                        percentual: parseFloat(row.percentual_sobreposicao),
+                        area_intersecao_m2: parseFloat(row.area_intersecao_m2),
+                        propriedade_existente: {
+                            id: row.id,
+                            nome_propriedade: row.nome_propriedade,
+                            matricula: row.matricula,
+                            municipio: row.municipio,
+                            uf: row.uf
+                        }
+                    });
+                }
+            } catch (geoError) {
+                console.warn('⚠️ Erro na verificação geográfica (polígono pode ser inválido):', geoError.message);
+                alertas.push({
+                    tipo: 'GEOMETRIA_INVALIDA',
+                    nivel: 'AVISO',
+                    mensagem: 'Não foi possível verificar sobreposições (geometria pode ser inválida)'
+                });
+            }
+        }
+
+        // Consolidar alertas
+        const temProblemasCriticos = duplicatas.some(d => d.nivel === 'CRITICO') ||
+            sobreposicoes.some(s => s.nivel === 'CRITICO');
+        const temProblemasAltos = duplicatas.some(d => d.nivel === 'ALTO') ||
+            sobreposicoes.some(s => s.nivel === 'ALTO');
+
+        res.json({
+            success: true,
+            verificacao: {
+                pode_salvar: !temProblemasCriticos,
+                requer_confirmacao: temProblemasCriticos || temProblemasAltos,
+                duplicatas: duplicatas,
+                sobreposicoes: sobreposicoes,
+                alertas: alertas,
+                resumo: {
+                    total_duplicatas: duplicatas.length,
+                    total_sobreposicoes: sobreposicoes.length,
+                    nivel_maximo: temProblemasCriticos ? 'CRITICO' : (temProblemasAltos ? 'ALTO' : 'OK')
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('[ERRO] Verificação de memorial:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao verificar memorial',
+            error: error.message
+        });
+    } finally {
+        client.release();
     }
 });
 
