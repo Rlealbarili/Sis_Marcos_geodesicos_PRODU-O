@@ -926,19 +926,60 @@ async function carregarMarcosNoMapa() {
 
                     const marker = L.marker([coords.lat, coords.lng], { icon: icone })
                         .bindPopup(`
-                            <div style="min-width: 200px;">
-                                <h4 style="margin: 0 0 10px 0; color: #84c225;">${marco.codigo}</h4>
-                                <p style="margin: 5px 0;"><strong>Tipo:</strong> ${marco.tipo}</p>
-                                <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #28a745;">LEVANTADO</span></p>
-                                <p style="margin: 5px 0;"><strong>Localização:</strong> ${marco.localizacao || '-'}</p>
-                                <p style="margin: 5px 0;"><strong>Lote:</strong> ${marco.lote || '-'}</p>
-                                <p style="margin: 5px 0;"><strong>Lat:</strong> ${coords.lat.toFixed(6)}°</p>
-                                <p style="margin: 5px 0;"><strong>Lng:</strong> ${coords.lng.toFixed(6)}°</p>
-                                <p style="margin: 5px 0;"><strong>E:</strong> ${e.toFixed(2)} m</p>
-                                <p style="margin: 5px 0;"><strong>N:</strong> ${n.toFixed(2)} m</p>
-                                <button onclick="verDetalhes(${marco.id})" style="margin-top: 10px; padding: 8px 15px; background: #84c225; color: white; border: none; border-radius: 5px; cursor: pointer;">Ver Detalhes</button>
+                            <div class="propriedade-popup">
+                                <div class="propriedade-popup-header">
+                                    <div class="propriedade-popup-icon" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">
+                                        <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+                                    </div>
+                                    <div class="propriedade-popup-title">
+                                        <h3>${marco.codigo}</h3>
+                                        <span class="propriedade-popup-badge" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">LEVANTADO</span>
+                                    </div>
+                                </div>
+                                <div class="propriedade-popup-body">
+                                    <div class="propriedade-popup-row">
+                                        <span class="propriedade-popup-label">Tipo</span>
+                                        <span class="propriedade-popup-value">${marco.tipo}</span>
+                                    </div>
+                                    <div class="propriedade-popup-row">
+                                        <span class="propriedade-popup-label">Município</span>
+                                        <span class="propriedade-popup-value">${marco.localizacao || 'N/A'}</span>
+                                    </div>
+                                    ${marco.lote ? `
+                                    <div class="propriedade-popup-row">
+                                        <span class="propriedade-popup-label">Lote</span>
+                                        <span class="propriedade-popup-value">${marco.lote}</span>
+                                    </div>` : ''}
+                                    <div class="propriedade-popup-section-title">Coordenadas</div>
+                                    <div class="propriedade-popup-metrics">
+                                        <div class="propriedade-popup-metric">
+                                            <span class="propriedade-popup-metric-value">${coords.lat.toFixed(6)}°</span>
+                                            <span class="propriedade-popup-metric-label">Latitude</span>
+                                        </div>
+                                        <div class="propriedade-popup-metric">
+                                            <span class="propriedade-popup-metric-value">${coords.lng.toFixed(6)}°</span>
+                                            <span class="propriedade-popup-metric-label">Longitude</span>
+                                        </div>
+                                    </div>
+                                    <div class="propriedade-popup-metrics" style="margin-top: 8px;">
+                                        <div class="propriedade-popup-metric">
+                                            <span class="propriedade-popup-metric-value">${e.toFixed(2)}</span>
+                                            <span class="propriedade-popup-metric-label">E (m)</span>
+                                        </div>
+                                        <div class="propriedade-popup-metric">
+                                            <span class="propriedade-popup-metric-value">${n.toFixed(2)}</span>
+                                            <span class="propriedade-popup-metric-label">N (m)</span>
+                                        </div>
+                                    </div>
+                                    <button onclick="verDetalhes(${marco.id})" class="btn btn-primary" style="width: 100%; margin-top: 12px;">
+                                        <i data-lucide="eye" style="width:14px;height:14px;"></i> Ver Detalhes
+                                    </button>
+                                </div>
                             </div>
-                        `)
+                        `, { maxWidth: 350 })
+                        .on('popupopen', function () {
+                            if (typeof lucide !== 'undefined') lucide.createIcons();
+                        })
                         .addTo(marcosLayer);
 
                     marker.marcoData = marco;
@@ -3672,15 +3713,31 @@ function atualizarMarcadores() {
                 });
 
                 marker.bindPopup(`
-                    <div style="font-family: Arial; min-width: 200px;">
-                        <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">${props.codigo}</h3>
-                        <table style="width: 100%; font-size: 13px;">
-                            <tr><td><strong>Tipo:</strong></td><td>${props.tipo}</td></tr>
-                            <tr><td><strong>Município:</strong></td><td>${props.municipio || 'N/A'}</td></tr>
-                            <tr><td><strong>Status:</strong></td><td>${props.status || 'LEVANTADO'}</td></tr>
-                        </table>
+                    <div class="propriedade-popup">
+                        <div class="propriedade-popup-header">
+                            <div class="propriedade-popup-icon" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">
+                                <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+                            </div>
+                            <div class="propriedade-popup-title">
+                                <h3>${props.codigo}</h3>
+                                <span class="propriedade-popup-badge" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">${props.status || 'LEVANTADO'}</span>
+                            </div>
+                        </div>
+                        <div class="propriedade-popup-body">
+                            <div class="propriedade-popup-row">
+                                <span class="propriedade-popup-label">Tipo</span>
+                                <span class="propriedade-popup-value">${props.tipo}</span>
+                            </div>
+                            <div class="propriedade-popup-row">
+                                <span class="propriedade-popup-label">Município</span>
+                                <span class="propriedade-popup-value">${props.municipio || 'N/A'}</span>
+                            </div>
+                        </div>
                     </div>
-                `);
+                `, { maxWidth: 320 });
+                marker.on('popupopen', function () {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
 
                 window.marcadoresLayer.addLayer(marker);
             }
@@ -3910,10 +3967,27 @@ function criarLayerMarcosLegado(marcos) {
 
         const marker = L.marker([marco.latitude, marco.longitude], { icon: icon });
         marker.bindPopup(`
-            <h4>${marco.codigo || marco.nome || 'Marco'}</h4>
-            <strong>Tipo:</strong> ${marco.tipo}<br>
-            <strong>Local:</strong> ${marco.municipio || 'N/A'}
-        `);
+            <div class="propriedade-popup">
+                <div class="propriedade-popup-header">
+                    <div class="propriedade-popup-icon" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">
+                        <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="propriedade-popup-title">
+                        <h3>${marco.codigo || marco.nome || 'Marco'}</h3>
+                        <span class="propriedade-popup-badge" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">${marco.tipo}</span>
+                    </div>
+                </div>
+                <div class="propriedade-popup-body">
+                    <div class="propriedade-popup-row">
+                        <span class="propriedade-popup-label">Município</span>
+                        <span class="propriedade-popup-value">${marco.municipio || 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+        `, { maxWidth: 320 });
+        marker.on('popupopen', function () {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
         return marker;
     });
 
@@ -3939,19 +4013,58 @@ function criarMarkerMarco(marco, coresPorTipo) {
     // Popup otimizado (só cria quando abre)
     marker.bindPopup(() => {
         return `
-            <div style="min-width: 200px;">
-                <h3 style="margin: 0 0 10px 0; color: #2c3e50;">${marco.codigo || marco.nome || 'Marco'}</h3>
-                <strong>🏷️ Tipo:</strong> ${marco.tipo}<br>
-                <strong>📍 Localização:</strong> ${marco.localizacao || marco.municipio || 'N/A'}<br>
-                ${marco.lote ? `<strong>🗺️ Lote:</strong> ${marco.lote}<br>` : ''}
-                ${marco.altitude ? `<strong>📊 Altitude:</strong> ${marco.altitude}m<br>` : ''}
-                ${marco.ano_implantacao ? `<strong>🗓️ Implantação:</strong> ${marco.ano_implantacao}<br>` : ''}
-                <strong>📏 Coordenadas:</strong><br>
-                Lat: ${marco.latitude.toFixed(6)}°<br>
-                Lon: ${marco.longitude.toFixed(6)}°
+            <div class="propriedade-popup">
+                <div class="propriedade-popup-header">
+                    <div class="propriedade-popup-icon" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">
+                        <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="propriedade-popup-title">
+                        <h3>${marco.codigo || marco.nome || 'Marco'}</h3>
+                        <span class="propriedade-popup-badge" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">${marco.tipo}</span>
+                    </div>
+                </div>
+                <div class="propriedade-popup-body">
+                    <div class="propriedade-popup-row">
+                        <span class="propriedade-popup-label">Localização</span>
+                        <span class="propriedade-popup-value">${marco.localizacao || marco.municipio || 'N/A'}</span>
+                    </div>
+                    ${marco.lote ? `
+                    <div class="propriedade-popup-row">
+                        <span class="propriedade-popup-label">Lote</span>
+                        <span class="propriedade-popup-value">${marco.lote}</span>
+                    </div>` : ''}
+                    ${marco.altitude ? `
+                    <div class="propriedade-popup-row">
+                        <span class="propriedade-popup-label">Altitude</span>
+                        <span class="propriedade-popup-value">${marco.altitude}m</span>
+                    </div>` : ''}
+                    ${marco.ano_implantacao ? `
+                    <div class="propriedade-popup-row">
+                        <span class="propriedade-popup-label">Implantação</span>
+                        <span class="propriedade-popup-value">${marco.ano_implantacao}</span>
+                    </div>` : ''}
+                    <div class="propriedade-popup-section-title">Coordenadas</div>
+                    <div class="propriedade-popup-metrics">
+                        <div class="propriedade-popup-metric">
+                            <span class="propriedade-popup-metric-value">${marco.latitude.toFixed(6)}°</span>
+                            <span class="propriedade-popup-metric-label">Latitude</span>
+                        </div>
+                        <div class="propriedade-popup-metric">
+                            <span class="propriedade-popup-metric-value">${marco.longitude.toFixed(6)}°</span>
+                            <span class="propriedade-popup-metric-label">Longitude</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
-    }, { maxWidth: 300 });
+    }, { maxWidth: 350 });
+
+    // Inicializar ícones Lucide quando popup abrir
+    marker.on('popupopen', function () {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
 
     return marker;
 }
@@ -4932,23 +5045,73 @@ async function carregarPropriedades() {
             },
             onEachFeature: function (feature, layer) {
                 const props = feature.properties;
+                const tipoLower = (props.tipo || 'rural').toLowerCase();
+                const tipoIcon = tipoLower === 'urbana' ? 'building-2' : 'trees';
+
+                // Função para formatar matrícula (null, vazio, ou IMPORT-/KML- = "Não informada")
+                const formatarMatricula = (mat) => {
+                    if (!mat || mat.startsWith('IMPORT-') || mat.startsWith('KML-')) {
+                        return '<span class="propriedade-popup-value not-informed">Não informada</span>';
+                    }
+                    return `<span class="propriedade-popup-value">${mat}</span>`;
+                };
+
+                // Função para formatar cliente
+                const formatarCliente = (cliente) => {
+                    if (!cliente) {
+                        return '<span class="propriedade-popup-value not-informed">Não informado</span>';
+                    }
+                    return `<span class="propriedade-popup-value">${cliente}</span>`;
+                };
 
                 const popupContent = `
                     <div class="propriedade-popup">
-                        <h3>${props.nome || 'Sem nome'}</h3>
-                        <p><strong>Matrícula:</strong> ${props.matricula || 'N/A'}</p>
-                        <p><strong>Cliente:</strong> ${props.cliente || 'N/A'}</p>
-                        <p><strong>Município:</strong> ${props.municipio || 'N/A'} - ${props.uf || ''}</p>
-                        <p><strong>Tipo:</strong> <span style="background: ${getTipoColor(props.tipo)}; padding: 2px 8px; border-radius: 3px; color: white; font-size: 11px;">${props.tipo}</span></p>
-                        <hr>
-                        <p><strong>Área Informada:</strong> ${formatarArea(props.area_m2)}</p>
-                        <p><strong>Área Calculada:</strong> ${formatarArea(props.area_calculada)}</p>
-                        ${calcularDiferencaArea(props.area_m2, props.area_calculada)}
-                        <p><strong>Perímetro:</strong> ${formatarDistancia(props.perimetro_calculado)}</p>
+                        <div class="propriedade-popup-header">
+                            <div class="propriedade-popup-icon ${tipoLower}">
+                                <i data-lucide="${tipoIcon}" style="width:20px;height:20px;"></i>
+                            </div>
+                            <div class="propriedade-popup-title">
+                                <h3>${props.nome || 'Sem nome'}</h3>
+                                <span class="propriedade-popup-badge ${tipoLower}">${props.tipo || 'RURAL'}</span>
+                            </div>
+                        </div>
+                        <div class="propriedade-popup-body">
+                            <div class="propriedade-popup-row">
+                                <span class="propriedade-popup-label">Matrícula</span>
+                                ${formatarMatricula(props.matricula)}
+                            </div>
+                            <div class="propriedade-popup-row">
+                                <span class="propriedade-popup-label">Cliente</span>
+                                ${formatarCliente(props.cliente)}
+                            </div>
+                            <div class="propriedade-popup-row">
+                                <span class="propriedade-popup-label">Município</span>
+                                <span class="propriedade-popup-value">${props.municipio || 'N/A'} - ${props.uf || ''}</span>
+                            </div>
+                            
+                            <div class="propriedade-popup-section-title">Medições</div>
+                            <div class="propriedade-popup-metrics">
+                                <div class="propriedade-popup-metric">
+                                    <span class="propriedade-popup-metric-value">${formatarArea(props.area_calculada)}</span>
+                                    <span class="propriedade-popup-metric-label">Área</span>
+                                </div>
+                                <div class="propriedade-popup-metric">
+                                    <span class="propriedade-popup-metric-value">${formatarDistancia(props.perimetro_calculado)}</span>
+                                    <span class="propriedade-popup-metric-label">Perímetro</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
 
                 layer.bindPopup(popupContent, { maxWidth: 350 });
+
+                // Inicializar ícones Lucide quando popup abrir
+                layer.on('popupopen', function () {
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                });
 
                 // Highlight ao passar mouse
                 layer.on('mouseover', function () {

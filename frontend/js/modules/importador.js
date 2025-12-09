@@ -239,7 +239,7 @@
                             <h3 style="margin-top:0;">✅ Memorial Salvo!</h3>
                             <p>Propriedade <strong>#${propId}</strong> criada com <strong>${totalV}</strong> vértices.</p>
                             <div style="margin-top:15px;">
-                                <button id="btn-ver-mapa-final" class="btn btn-primary" style="margin-right:10px;">🗺️ Ver no Mapa</button>
+                                <button id="btn-ver-mapa-final" class="btn btn-primary" style="margin-right:10px;"><i data-lucide="map" style="width:14px;height:14px;"></i> Ver no Mapa</button>
                                 <button id="btn-nova-importacao" class="btn btn-secondary">Nova Importação</button>
                             </div>
                         </div>

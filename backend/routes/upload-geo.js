@@ -307,7 +307,7 @@ async function inserirPropriedade(dados) {
     const values = [
         dados.cliente_id || 1,
         dados.nome_propriedade,
-        dados.matricula || 'IMPORT-' + Date.now(),
+        dados.matricula || null,
         dados.tipo || 'RURAL',
         dados.municipio || 'A definir',
         dados.comarca || 'A definir',

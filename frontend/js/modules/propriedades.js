@@ -135,20 +135,24 @@ function renderCardPropriedade(prop) {
             </div>
             
             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">
-                <div style="margin-bottom: 6px;">
-                    <strong>📋 Matrícula:</strong> ${prop.matricula || 'N/A'}
+                <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="file-text" style="width: 14px; height: 14px; color: var(--text-tertiary); flex-shrink: 0;"></i>
+                    <span><strong>Matrícula:</strong> ${(!prop.matricula || prop.matricula.startsWith('IMPORT-') || prop.matricula.startsWith('KML-')) ? '<em style="color: var(--text-tertiary);">Não informada</em>' : prop.matricula}</span>
                 </div>
-                <div style="margin-bottom: 6px;">
-                    <strong>📍 Local:</strong> ${prop.municipio || 'N/A'} - ${prop.uf || 'N/A'}
+                <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="map-pin" style="width: 14px; height: 14px; color: var(--text-tertiary); flex-shrink: 0;"></i>
+                    <span><strong>Local:</strong> ${prop.municipio || 'N/A'} - ${prop.uf || 'N/A'}</span>
                 </div>
                 ${prop.area_m2 ? `
-                    <div style="margin-bottom: 6px;">
-                        <strong>📐 Área:</strong> ${(prop.area_m2 / 10000).toFixed(4)} ha (${parseFloat(prop.area_m2).toLocaleString('pt-BR')} m²)
+                    <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="square" style="width: 14px; height: 14px; color: var(--text-tertiary); flex-shrink: 0;"></i>
+                        <span><strong>Área:</strong> ${(prop.area_m2 / 10000).toFixed(4)} ha (${parseFloat(prop.area_m2).toLocaleString('pt-BR')} m²)</span>
                     </div>
                 ` : ''}
                 ${prop.perimetro_m ? `
-                    <div style="margin-bottom: 6px;">
-                        <strong>📏 Perímetro:</strong> ${parseFloat(prop.perimetro_m).toLocaleString('pt-BR')} m
+                    <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="ruler" style="width: 14px; height: 14px; color: var(--text-tertiary); flex-shrink: 0;"></i>
+                        <span><strong>Perímetro:</strong> ${parseFloat(prop.perimetro_m).toLocaleString('pt-BR')} m</span>
                     </div>
                 ` : ''}
             </div>

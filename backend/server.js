@@ -438,6 +438,9 @@ app.get('/api/propriedades/geojson', async (req, res) => {
                 p.perimetro_m,
                 p.observacoes,
                 c.nome as cliente_nome,
+                -- Cálculos PostGIS para área e perímetro reais
+                ST_Area(p.geometry) as area_calculada,
+                ST_Perimeter(p.geometry) as perimetro_calculado,
                 ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geometry
             FROM propriedades p
             LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -454,14 +457,24 @@ app.get('/api/propriedades/geojson', async (req, res) => {
                     type: 'Feature',
                     properties: {
                         id: row.id,
+                        // Aliases para compatibilidade com frontend
+                        nome: row.nome_propriedade,
                         nome_propriedade: row.nome_propriedade,
                         matricula: row.matricula,
                         tipo: row.tipo,
                         municipio: row.municipio,
                         uf: row.uf,
-                        area_m2: parseFloat(row.area_m2) || 0,
-                        perimetro_m: parseFloat(row.perimetro_m) || 0,
+                        // Área informada (do banco)
+                        area_m2: parseFloat(row.area_m2) || null,
+                        // Área calculada via PostGIS
+                        area_calculada: parseFloat(row.area_calculada) || null,
+                        // Perímetro informado (do banco)
+                        perimetro_m: parseFloat(row.perimetro_m) || null,
+                        // Perímetro calculado via PostGIS
+                        perimetro_calculado: parseFloat(row.perimetro_calculado) || null,
                         observacoes: row.observacoes,
+                        // Aliases para cliente
+                        cliente: row.cliente_nome,
                         cliente_nome: row.cliente_nome
                     },
                     geometry: geometry

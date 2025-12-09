@@ -177,23 +177,42 @@ class ClusterManager {
       fillOpacity: 0.9
     });
 
-    // Popup
+    // Popup Premium
     const popupContent = `
-      <div class="marco-popup">
-        <h3>${props.nome || props.codigo || 'Marco'}</h3>
-        <p><strong>Tipo:</strong> ${props.tipo}</p>
-        <p><strong>Município:</strong> ${props.municipio || 'N/A'} ${props.uf ? '- ' + props.uf : ''}</p>
-        ${props.altitude ? `<p><strong>Altitude:</strong> ${props.altitude}m</p>` : ''}
+      <div class="propriedade-popup">
+        <div class="propriedade-popup-header">
+          <div class="propriedade-popup-icon" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">
+            <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
+          </div>
+          <div class="propriedade-popup-title">
+            <h3>${props.nome || props.codigo || 'Marco'}</h3>
+            <span class="propriedade-popup-badge" style="background: rgba(132, 194, 37, 0.15); color: #84c225;">${props.tipo}</span>
+          </div>
+        </div>
+        <div class="propriedade-popup-body">
+          <div class="propriedade-popup-row">
+            <span class="propriedade-popup-label">Município</span>
+            <span class="propriedade-popup-value">${props.municipio || 'N/A'} ${props.uf ? '- ' + props.uf : ''}</span>
+          </div>
+          ${props.altitude ? `
+          <div class="propriedade-popup-row">
+            <span class="propriedade-popup-label">Altitude</span>
+            <span class="propriedade-popup-value">${props.altitude}m</span>
+          </div>` : ''}
+        </div>
       </div>
     `;
 
-    marker.bindPopup(popupContent);
+    marker.bindPopup(popupContent, { maxWidth: 320 });
+    marker.on('popupopen', function () {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
 
     // Hover effect
-    marker.on('mouseover', function() {
+    marker.on('mouseover', function () {
       this.setStyle({ radius: 8, weight: 2 });
     });
-    marker.on('mouseout', function() {
+    marker.on('mouseout', function () {
       this.setStyle({ radius: 6, weight: 1 });
     });
 
