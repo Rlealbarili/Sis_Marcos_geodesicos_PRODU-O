@@ -1306,6 +1306,16 @@ function criarControleCamadas() {
         position: 'topright'
     }).addTo(map);
 
+    // [FIX PETROVICH] Inicialização de segurança para Polígonos
+    if (!poligonosLayer) {
+        console.log("🔧 Hotfix: Inicializando poligonosLayer");
+        poligonosLayer = L.layerGroup().addTo(map);
+        layerControl.addOverlay(poligonosLayer, "Polígonos (Importados)");
+    } else {
+        // Caso já tenha sido inicializada, apenas garante que está no controle
+        layerControl.addOverlay(poligonosLayer, "Polígonos (Importados)");
+    }
+
     console.log('✅ Controle de camadas criado');
 }
 

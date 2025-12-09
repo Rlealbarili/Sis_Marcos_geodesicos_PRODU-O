@@ -1,6 +1,6 @@
 # Estado Atual do Projeto - Sis_Marcos_Inventario
 
-**Última Atualização:** 2025-12-09
+**Última Atualização:** 2025-12-09 11:17
 
 ## Status Geral: FUNCIONAL ✅
 
@@ -21,8 +21,8 @@
 
 ### Frontend (Leaflet/JavaScript)
 - **Estrutura Modular**:
-  - `js/modules/importador.js` - Importação de memoriais DOCX
-  - `js/modules/propriedades.js` - CRUD de propriedades
+  - `js/modules/importador.js` - Importação de memoriais DOCX ✅ **COMPLETO**
+  - `js/modules/propriedades.js` - CRUD de propriedades + Ver no Mapa
   - `js/modules/clientes.js` - CRUD de clientes
   - `js/modules/historico.js` - Logs de auditoria
   - `js/modules/modals-crud.js` - Modais de criação/edição
@@ -46,7 +46,7 @@
 | Tipo | Status | Endpoint | Notas |
 |------|--------|----------|-------|
 | CSV/XLSX | ✅ Funcional | `/api/upload-csv` | Streaming com batch insert, suporta 20k+ registros |
-| Memorial DOCX | ⚠️ Parcial | `/api/memorial/upload` | Extrai dados mas NÃO salva automaticamente |
+| Memorial DOCX | ✅ **COMPLETO** | `/api/memorial/upload` | Extrai → Verifica → Salva → Ver no Mapa |
 | Arquivos GEO | ✅ Funcional | `/api/geo/upload` | Suporta KML, KMZ, SHP, DXF, GeoJSON |
 
 ### Gestão de Entidades
@@ -63,47 +63,52 @@
 
 ---
 
-## Problemas Conhecidos
+## ✅ RESOLVIDO NESTA SESSÃO: Fluxo de Importação DOCX
 
-### IMPORTANTE: Fluxo de Importação DOCX Incompleto
-1. O módulo `importador.js` envia para `/api/memorial/upload`
-2. Backend **EXTRAI** os dados mas **NÃO SALVA** no banco
-3. O endpoint `/api/salvar-memorial-completo` existe mas **não é chamado**
-4. Os dados extraídos são **perdidos** após fechar a página
+### Funcionalidade Completa:
+1. **Extração**: Upload do DOCX → API Unstructured → Parse de coordenadas
+2. **Verificação**: Detecção de duplicatas (matrícula, nome+município) e sobreposições geográficas
+3. **Confirmação**: Se conflitos, usuário vê `confirm()` e decide se continua
+4. **Salvamento**: Cliente + Propriedade + Vértices + Geometria (PostGIS)
+5. **Ver no Mapa**: Botão leva direto para propriedade com **zoom e popup**
 
-**Solução Pendente**: Modificar `importador.js` para chamar salvamento após extração
+### Bugs Corrigidos:
+- ✅ `poligonosLayer` não inicializado → [FIX PETROVICH] em `script.js`
+- ✅ Botão "Ver no Mapa" não centralizava → Usa `verPropriedadeNoMapa()` de `propriedades.js`
 
 ---
 
 ## Última Sessão de Trabalho (2025-12-09)
 
 ### O que foi feito:
-1. ✅ Corrigido botão "Descartar" na importação CSV (reset completo)
-2. ✅ Corrigido erro "ON CONFLICT" em importação XLSX (deduplicação de batch)
-3. ✅ Criado endpoint `/api/verificar-memorial` para detecção de duplicatas/sobreposições
-4. ✅ Análise completa do fluxo de importação DOCX
-5. ⚠️ Tentativa de unificar fluxo DOCX - **REVERTIDA** (modificações quebraram script.js)
-6. ✅ Arquivos restaurados via `git checkout`
+1. ✅ Corrigido botão "Descartar" na importação CSV
+2. ✅ Corrigido erro "ON CONFLICT" em importação XLSX
+3. ✅ Criado endpoint `/api/verificar-memorial`
+4. ✅ **FLUXO DOCX UNIFICADO** - Chain de 3 requests:
+   - `POST /api/memorial/upload` (extração)
+   - `POST /api/verificar-memorial` (duplicatas)
+   - `POST /api/salvar-memorial-completo` (persistência)
+5. ✅ [FIX PETROVICH] Inicialização de `poligonosLayer` em `script.js`
+6. ✅ Botão "Ver no Mapa" com zoom e popup funcionando
+7. ✅ Docker rebuild bem-sucedido
 
 ### Arquivos Modificados:
-- `backend/routes/upload-csv.js` - Deduplicação de batch
-- `backend/server.js` - Endpoint `/api/verificar-memorial`
-- `frontend/script.js` - Cancelar importação (resetado para original)
-- `frontend/js/modules/importador.js` - (resetado para original)
+- `backend/server.js` - [FIX PETROVICH] inicialização poligonosLayer
+- `frontend/script.js` - Hotfix linha 1311-1318
+- `frontend/js/modules/importador.js` - Fluxo completo implementado
 
 ---
 
 ## Próximos Passos
 
-### Prioridade Alta
-1. **Completar fluxo DOCX**: Modificar `importador.js` para chamar `/api/salvar-memorial-completo` após extração
-2. **Integrar verificação**: Adicionar chamada a `/api/verificar-memorial` antes de salvar
-3. **Botão "Ver no Mapa"**: Adicionar após importação bem-sucedida
-
 ### Prioridade Média
 1. Testar importação de grandes volumes (20k+ registros)
 2. Validar funcionamento do CAR (análise com PostGIS)
 3. Preparar para migração AWS
+
+### Prioridade Baixa
+1. Substituir ícone `map-off` que não existe no Lucide
+2. Refatorar `script.js` em módulos menores (debt técnico)
 
 ---
 

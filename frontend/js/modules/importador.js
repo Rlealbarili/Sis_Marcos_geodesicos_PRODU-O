@@ -100,93 +100,190 @@
 
         uploadReal: async function () {
             if (!this.arquivoSelecionado) {
-                this.mostrarToast('Nenhum arquivo selecionado.', 'error');
+                // Tenta usar alert nativo se mostrarToast não estiver disponível no escopo
+                if (typeof this.mostrarToast === 'function') this.mostrarToast('Nenhum arquivo selecionado.', 'error');
+                else alert('Nenhum arquivo selecionado.');
                 return;
             }
 
             const arquivo = this.arquivoSelecionado;
-            console.log(`🚀 Enviando "${arquivo.name}" para ${CONFIG.endpoint}...`);
+            const docxStatus = document.getElementById(CONFIG.ids.docxStatus || 'status-importacao'); // Fallback de segurança
+            // Garante que a URL não tenha barra duplicada
+            const baseUrl = (window.API_URL || '').replace(/\/$/, '');
 
-            const docxStatus = document.getElementById(CONFIG.ids.docxStatus);
+            // UI: Feedback Inicial
             if (docxStatus) {
                 docxStatus.innerHTML = `
                     <div style="text-align:center;padding:20px;">
-                        <div class="spinner" style="margin:0 auto 15px auto;"></div>
-                        <p>Processando memorial descritivo...</p>
-                        <p style="font-size:12px;color:var(--text-secondary);">Extraindo coordenadas e geometria...</p>
+                        <div class="spinner" style="margin:0 auto 15px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite;"></div>
+                        <p><strong>Etapa 1/3:</strong> Extraindo dados do memorial...</p>
                     </div>
+                    <style>@keyframes spin {0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);}}</style>
                 `;
             }
 
-            const formData = new FormData();
-            formData.append(CONFIG.fieldName, arquivo);
-
             try {
-                const baseUrl = (window.API_URL || '').replace(/\/$/, '');
-                const response = await fetch(baseUrl + CONFIG.endpoint, {
+                // ---------------------------------------------------------
+                // ETAPA 1: Extração (Upload)
+                // ---------------------------------------------------------
+                const formData = new FormData();
+                formData.append(CONFIG.fieldName || 'memorial', arquivo);
+
+                const resUpload = await fetch(baseUrl + CONFIG.endpoint, {
                     method: 'POST',
                     body: formData
                 });
 
-                if (!response.ok) {
-                    let erro;
-                    try {
-                        erro = await response.json();
-                    } catch {
-                        erro = { erro: `Erro ${response.status}` };
-                    }
-                    throw new Error(erro.erro || 'Erro desconhecido no servidor');
+                if (!resUpload.ok) {
+                    let erroMsg = 'Erro desconhecido';
+                    try { const err = await resUpload.json(); erroMsg = err.erro || err.message; } catch (e) { }
+                    throw new Error(`Falha no upload: ${erroMsg}`);
                 }
 
-                const dados = await response.json();
-                console.log("✅ Sucesso! Retorno do Backend:", dados);
+                const dados = await resUpload.json();
+                if (!dados.sucesso) throw new Error(dados.erro || 'Falha na extração dos dados.');
 
-                // Exibe resultado
+                console.log('✅ [Importador] Dados extraídos:', dados);
+
+                // ---------------------------------------------------------
+                // ETAPA 2: Verificação (Duplicatas)
+                // ---------------------------------------------------------
+                if (docxStatus) docxStatus.querySelector('p').innerText = "Etapa 2/3: Verificando conflitos...";
+
+                const payloadVerificacao = {
+                    propriedade: {
+                        nome_propriedade: dados.propriedade?.nome,
+                        matricula: dados.propriedade?.matricula,
+                        municipio: dados.propriedade?.municipio
+                    },
+                    vertices: dados.vertices || []
+                };
+
+                const resCheck = await fetch(baseUrl + '/api/verificar-memorial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadVerificacao)
+                });
+
+                const checkResult = await resCheck.json();
+
+                // Lógica de Confirmação de Conflito
+                if (checkResult.verificacao?.requer_confirmacao) {
+                    const listaDuplicatas = checkResult.verificacao.duplicatas.map(d => `⚠️ ${d.mensagem}`).join('\n');
+                    const listaSobreposicoes = checkResult.verificacao.sobreposicoes.map(s => `📍 ${s.mensagem}`).join('\n');
+
+                    const msg = `ATENÇÃO: Conflitos Detectados!\n\n${listaDuplicatas}\n${listaSobreposicoes}\n\nDeseja continuar e salvar mesmo assim?`;
+
+                    if (!confirm(msg)) {
+                        if (docxStatus) docxStatus.innerHTML = `<div style="padding:15px; color:#856404; background-color:#fff3cd; border:1px solid #ffeeba; border-radius:4px;">Operação cancelada pelo usuário.</div>`;
+                        return; // Aborta
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // ETAPA 3: Persistência (Salvar)
+                // ---------------------------------------------------------
+                if (docxStatus) docxStatus.querySelector('p').innerText = "Etapa 3/3: Salvando no banco de dados...";
+
+                const payloadFinal = {
+                    cliente: {
+                        nome: dados.cliente?.nome || 'Cliente Importação Automática',
+                        novo: true
+                    },
+                    propriedade: {
+                        nome_propriedade: dados.propriedade?.nome || 'Propriedade Importada',
+                        matricula: dados.propriedade?.matricula,
+                        tipo: 'RURAL',
+                        municipio: dados.propriedade?.municipio,
+                        uf: dados.propriedade?.uf,
+                        area_m2: dados.area_m2,
+                        perimetro_m: dados.perimetro_m
+                    },
+                    vertices: (dados.vertices || []).map((v, idx) => ({
+                        nome: v.nome || `V${idx + 1}`,
+                        ordem: v.ordem || idx + 1,
+                        coordenadas: {
+                            e: v.coordenadas?.e || v.e,
+                            n: v.coordenadas?.n || v.n,
+                            lat_original: v.coordenadas?.lat,
+                            lon_original: v.coordenadas?.lng,
+                            utm_zona: v.coordenadas?.zona || '22S',
+                            datum: v.coordenadas?.datum || 'SIRGAS2000'
+                        }
+                    }))
+                };
+
+                const resSave = await fetch(baseUrl + '/api/salvar-memorial-completo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadFinal)
+                });
+
+                const saveResult = await resSave.json();
+
+                if (!saveResult.success) {
+                    throw new Error(saveResult.message || 'O servidor recusou o salvamento.');
+                }
+
+                // ---------------------------------------------------------
+                // SUCESSO FINAL
+                // ---------------------------------------------------------
+                console.log('💾 [Importador] Salvo com sucesso:', saveResult);
+
+                const propId = saveResult.data?.propriedade_id;
+                const totalV = saveResult.data?.vertices_criados || 0;
+
                 if (docxStatus) {
-                    const vertices = dados.total_vertices || dados.vertices?.length || 0;
-                    const propNome = dados.propriedade?.nome || dados.nome_propriedade || 'N/A';
-
                     docxStatus.innerHTML = `
-                        <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:20px;text-align:center;">
-                            <i data-lucide="check-circle-2" style="color:#16a34a;width:48px;height:48px;"></i>
-                            <h3 style="color:#16a34a;margin:10px 0;">Processamento Concluído!</h3>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0;">
-                                <div style="background:white;padding:10px;border-radius:6px;">
-                                    <div style="font-size:24px;font-weight:bold;color:#16a34a;">${vertices}</div>
-                                    <div style="font-size:12px;color:#666;">Vértices Extraídos</div>
-                                </div>
-                                <div style="background:white;padding:10px;border-radius:6px;">
-                                    <div style="font-size:14px;font-weight:bold;color:#333;word-break:break-word;">${propNome}</div>
-                                    <div style="font-size:12px;color:#666;">Propriedade</div>
-                                </div>
+                        <div style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:8px; padding:20px; text-align:center;">
+                            <h3 style="margin-top:0;">✅ Memorial Salvo!</h3>
+                            <p>Propriedade <strong>#${propId}</strong> criada com <strong>${totalV}</strong> vértices.</p>
+                            <div style="margin-top:15px;">
+                                <button id="btn-ver-mapa-final" class="btn btn-primary" style="margin-right:10px;">🗺️ Ver no Mapa</button>
+                                <button id="btn-nova-importacao" class="btn btn-secondary">Nova Importação</button>
                             </div>
-                            <button class="btn btn-secondary" onclick="window.Importador.cancelar()">Nova Importação</button>
                         </div>
                     `;
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                    // Reatribui eventos aos novos botões
+                    document.getElementById('btn-ver-mapa-final')?.addEventListener('click', () => {
+                        // Usa a mesma função da lista de propriedades - já funciona perfeitamente!
+                        if (window.verPropriedadeNoMapa) {
+                            console.log('🎯 [Importador] Chamando verPropriedadeNoMapa(' + propId + ')');
+                            window.verPropriedadeNoMapa(propId);
+                        } else {
+                            // Fallback: apenas navega para o mapa
+                            console.warn('[Importador] verPropriedadeNoMapa não disponível, navegando para mapa');
+                            const abaMapa = document.querySelector('[data-view="mapa"]') || document.querySelector('a[href="#mapa"]');
+                            if (abaMapa) abaMapa.click();
+                        }
+                    });
+
+                    document.getElementById('btn-nova-importacao')?.addEventListener('click', () => {
+                        if (typeof this.cancelar === 'function') this.cancelar();
+                        else docxStatus.innerHTML = ''; // Fallback
+                    });
                 }
 
-                // Dispara evento para atualizar mapa
-                window.dispatchEvent(new CustomEvent('memorialProcessado', { detail: dados }));
-
-                // Recarrega propriedades se a função existir
-                if (window.carregarPropriedadesLista) window.carregarPropriedadesLista();
-                if (window.carregarPoligonosNoMapa) window.carregarPoligonosNoMapa();
+                // Atualiza apenas lista de propriedades (seguro mesmo fora da aba mapa)
+                try {
+                    if (window.carregarPropriedadesLista) window.carregarPropriedadesLista();
+                } catch (e) {
+                    console.warn('[Importador] Aviso ao atualizar lista:', e.message);
+                }
 
             } catch (erro) {
-                console.error("❌ Erro no upload:", erro);
-
+                console.error('❌ [Importador] Erro:', erro);
                 if (docxStatus) {
                     docxStatus.innerHTML = `
-                        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:20px;text-align:center;">
-                            <i data-lucide="alert-triangle" style="color:#dc2626;width:48px;height:48px;"></i>
-                            <h3 style="color:#dc2626;margin:10px 0;">Erro no Processamento</h3>
-                            <p style="color:#991b1b;">${erro.message}</p>
-                            <button class="btn btn-secondary" onclick="window.Importador.cancelar()">Tentar Novamente</button>
+                        <div style="background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; border-radius:8px; padding:15px; text-align:center;">
+                            <strong>Erro no Processamento:</strong><br>${erro.message}
+                            <br><br>
+                            <button onclick="this.parentElement.innerHTML=''" class="btn btn-sm btn-outline-danger">Fechar</button>
                         </div>
                     `;
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 }
+                if (typeof this.mostrarToast === 'function') this.mostrarToast(erro.message, 'error');
             }
         },
 
