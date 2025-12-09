@@ -9,7 +9,7 @@ const { pool } = require('../database/postgres-connection');
 const path = require('path');
 
 // Configuração do Multer
-const upload = multer({ 
+const upload = multer({
     dest: 'uploads/',
     fileFilter: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
@@ -25,11 +25,11 @@ const upload = multer({
 function limparNumero(valor) {
     if (valor === null || valor === undefined || valor === '') return null;
     if (typeof valor === 'number') return valor;
-    
+
     let str = String(valor).trim();
     // Remove aspas e caracteres invisíveis
     str = str.replace(/["']/g, '').replace(/\s/g, '');
-    
+
     if (str === '') return null;
 
     // Detecção de formato brasileiro (Ex: 1.234,56)
@@ -38,14 +38,14 @@ function limparNumero(valor) {
         str = str.replace(/\./g, ''); // Remove milhar
         str = str.replace(',', '.');  // Vira decimal
     }
-    
+
     const numero = parseFloat(str);
     return isNaN(numero) ? null : numero;
 }
 
 router.post('/', upload.single('csvFile'), async (req, res) => {
     console.log(`📥 [ETL] Recebido arquivo: ${req.file.originalname}`);
-    
+
     const simulacao = req.body.simulacao === 'true' || req.query.simulacao === 'true';
     if (simulacao) console.log('🧪 MODO SIMULAÇÃO ATIVADO');
 
@@ -61,7 +61,7 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
         // Função unificada de processamento de linha
         const processarLinha = async (row, origem) => {
             resultados.total++;
-            
+
             // Normalização de chaves (Lower Case)
             const dados = {};
             Object.keys(row).forEach(key => {
@@ -76,7 +76,7 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
             const rawN = dados['n'] || dados['northing'] || dados['coordenada_n'] || dados['utmn'];
             const rawH = dados['h'] || dados['altitude'] || dados['cota'] || dados['z'] || dados['elevacao'];
             const localizacao = dados['localização'] || dados['localizacao'] || dados['local'] || origem;
-            
+
             // Ignorar linhas vazias ou sem código
             if (!codigo) return;
 
@@ -100,7 +100,7 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
             if (coordE === null || coordN === null) {
                 status = 'PENDENTE';
                 erroMotivo = 'Coordenadas nulas ou inválidas';
-            } 
+            }
             // Validação de Range (Zona 22S Aprox)
             else if (coordE < 100000 || coordE > 900000 || coordN < 6000000 || coordN > 10000000) {
                 status = 'PENDENTE';
@@ -115,7 +115,7 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
             // Adicionar ao Batch
             batch.push([
                 codigo, tipo, localizacao, coordE, coordN, altH, geom,
-                status, erroMotivo, 
+                status, erroMotivo,
                 `IMPORT-${new Date().toISOString().split('T')[0]}`, // Lote ID
                 new Date()
             ]);
@@ -129,6 +129,22 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
 
         const salvarLote = async (dados) => {
             if (dados.length === 0) return;
+
+            // DEDUPLICAÇÃO: Remover duplicatas de código dentro do batch
+            // O "codigo" é o primeiro elemento do array [0]
+            // Mantemos a ÚLTIMA ocorrência de cada código (sobrescreve anteriores)
+            const mapaUnicos = new Map();
+            for (const item of dados) {
+                const codigo = item[0]; // codigo é o primeiro elemento
+                mapaUnicos.set(codigo, item); // Sobrescreve se já existe
+            }
+            const dadosUnicos = Array.from(mapaUnicos.values());
+
+            const duplicatasRemovidas = dados.length - dadosUnicos.length;
+            if (duplicatasRemovidas > 0) {
+                console.log(`⚠️ Removidas ${duplicatasRemovidas} duplicatas no batch (${dadosUnicos.length} únicos de ${dados.length})`);
+            }
+
             const query = format(
                 `INSERT INTO marcos_levantados 
                 (codigo, tipo, localizacao, coordenada_e, coordenada_n, altitude, geometry, status_validacao, erro_validacao, lote_importacao, data_levantamento) 
@@ -141,7 +157,7 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
                     status_validacao = EXCLUDED.status_validacao,
                     erro_validacao = EXCLUDED.erro_validacao,
                     updated_at = NOW()`,
-                dados
+                dadosUnicos
             );
             await client.query(query);
         };
@@ -152,11 +168,11 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
             console.log('📊 Processando arquivo EXCEL (Multi-abas)...');
             const workbook = new ExcelJS.Workbook();
             await workbook.xlsx.readFile(req.file.path);
-            
+
             // ITERAÇÃO SOBRE TODAS AS ABAS (A Correção Solicitada)
             for (const worksheet of workbook.worksheets) {
                 console.log(`📑 Lendo aba: [${worksheet.name}]`);
-                
+
                 // Extrair cabeçalhos da linha 1 desta aba
                 let headers = [];
                 worksheet.getRow(1).eachCell((cell, colNumber) => {
@@ -169,21 +185,21 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
                     if (rowNumber === 1) return; // Pula cabeçalho
                     const rowData = {};
                     let hasData = false;
-                    
+
                     row.eachCell((cell, colNumber) => {
                         const header = headers[colNumber];
                         if (header) {
                             // Trata fórmulas e valores ricos
                             let val = cell.value;
                             if (val && typeof val === 'object') {
-                                if(val.result !== undefined) val = val.result; // Fórmula
-                                else if(val.text !== undefined) val = val.text; // Hyperlink
+                                if (val.result !== undefined) val = val.result; // Fórmula
+                                else if (val.text !== undefined) val = val.text; // Hyperlink
                             }
                             rowData[header] = val;
                             hasData = true;
                         }
                     });
-                    if(hasData) rows.push(rowData);
+                    if (hasData) rows.push(rowData);
                 });
 
                 // Processar dados da aba
@@ -218,23 +234,23 @@ router.post('/', upload.single('csvFile'), async (req, res) => {
             sucesso: true,
             modo_simulacao: simulacao,
             estatisticas: resultados,
-            mensagem: simulacao 
-                ? `Simulação finalizada. ${resultados.total} registros analisados.` 
+            mensagem: simulacao
+                ? `Simulação finalizada. ${resultados.total} registros analisados.`
                 : `Importação concluída com sucesso. ${resultados.total} registros processados.`
         });
 
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('❌ Erro fatal no ETL:', error);
-        res.status(500).json({ 
-            sucesso: false, 
+        res.status(500).json({
+            sucesso: false,
             erro: error.message,
-            hint: "Verifique se o arquivo não está corrompido ou protegido por senha." 
+            hint: "Verifique se o arquivo não está corrompido ou protegido por senha."
         });
     } finally {
         client.release();
         if (req.file && fs.existsSync(req.file.path)) {
-            try { fs.unlinkSync(req.file.path); } catch(e) {} // Limpeza
+            try { fs.unlinkSync(req.file.path); } catch (e) { } // Limpeza
         }
     }
 });

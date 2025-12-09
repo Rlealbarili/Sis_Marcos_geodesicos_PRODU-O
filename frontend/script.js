@@ -5181,9 +5181,56 @@ window.importarPlanilhaMarcos = async function (e, forcarProducao) {
     }
 };
 
-// Ação 4: Cancelar importação
+// Ação 4: Cancelar/Descartar importação - RESET COMPLETO
 window.cancelarImportacao = function () {
-    window.fecharModal('modal-importar-csv');
+    console.log('🗑️ Descartando importação...');
+
+    // 1. Limpar o input file
+    const fileInput = document.getElementById('file-input-importar');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+
+    // 2. Resetar display de nome do arquivo
+    const displayNome = document.getElementById('nome-arquivo-csv');
+    if (displayNome) {
+        displayNome.style.display = 'none';
+        displayNome.innerHTML = '';
+    }
+
+    // 3. Resetar botão de execução
+    const btnExec = document.getElementById('btn-executar-importacao');
+    if (btnExec) {
+        btnExec.disabled = true;
+        btnExec.innerHTML = '<i data-lucide="flask-conical"></i> Executar Simulação';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // 4. Mostrar painel de upload e esconder resultado
+    const painelUpload = document.getElementById('painel-upload');
+    if (painelUpload) {
+        painelUpload.style.display = 'block';
+    }
+
+    const resultadoImportacao = document.getElementById('resultado-importacao-planilha');
+    if (resultadoImportacao) {
+        resultadoImportacao.style.display = 'none';
+        resultadoImportacao.innerHTML = '';
+    }
+
+    // 5. Resetar preview area se existir
+    const previewArea = document.getElementById('preview-area');
+    if (previewArea) {
+        previewArea.style.display = 'none';
+    }
+
+    // 6. Resetar estatísticas se existirem
+    const statsContainer = document.getElementById('stats-importacao');
+    if (statsContainer) {
+        statsContainer.innerHTML = '';
+    }
+
+    console.log('✅ Importação descartada - pronto para nova seleção');
 };
 
 // Ação 5: Fechar modal genérico
