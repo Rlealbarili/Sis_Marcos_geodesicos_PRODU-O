@@ -1264,60 +1264,150 @@ function verPropriedadeNoMapa(propriedadeId) {
 }
 
 // ==========================================
-// CONTROLE DE CAMADAS
+// CONTROLE DE CAMADAS (SIMPLIFICADO)
 // ==========================================
-function criarControleCamadas() {
-    console.log('Criando controle de camadas...');
 
-    // Inicializar camadas se ainda não existirem
+// Variáveis para controle de tile layers
+let tileLayerAtual = null;
+const tileLayers = {
+    padrao: null,
+    satelite: null
+};
+
+function criarControleCamadas() {
+    console.log('Criando controle de camadas (simplificado)...');
+
+    // Inicializar camadas de dados (sempre ativas)
     if (!marcosLayer) {
         marcosLayer = L.layerGroup().addTo(map);
     }
-    if (!propriedadesRuraisLayer) {
-        propriedadesRuraisLayer = L.layerGroup();
-    }
-    if (!propriedadesUrbanasLayer) {
-        propriedadesUrbanasLayer = L.layerGroup();
-    }
-    if (!propriedadesLoteamentoLayer) {
-        propriedadesLoteamentoLayer = L.layerGroup();
-    }
-
-    // Camadas base (tiles)
-    const baseLayers = {
-        "Mapa Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }),
-        "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri'
-        })
-    };
-
-    // Camadas overlay (dados) - apenas incluir se existirem
-    const overlayLayers = {};
-    if (marcosLayer) overlayLayers["Marcos Geodésicos"] = marcosLayer;
-    if (propriedadesRuraisLayer) overlayLayers["Propriedades Rurais"] = propriedadesRuraisLayer;
-    if (propriedadesUrbanasLayer) overlayLayers["Propriedades Urbanas"] = propriedadesUrbanasLayer;
-    if (propriedadesLoteamentoLayer) overlayLayers["Loteamentos"] = propriedadesLoteamentoLayer;
-
-    // Adicionar controle ao mapa
-    layerControl = L.control.layers(baseLayers, overlayLayers, {
-        collapsed: false,
-        position: 'topright'
-    }).addTo(map);
-
-    // [FIX PETROVICH] Inicialização de segurança para Polígonos
     if (!poligonosLayer) {
-        console.log("🔧 Hotfix: Inicializando poligonosLayer");
         poligonosLayer = L.layerGroup().addTo(map);
-        layerControl.addOverlay(poligonosLayer, "Polígonos (Importados)");
-    } else {
-        // Caso já tenha sido inicializada, apenas garante que está no controle
-        layerControl.addOverlay(poligonosLayer, "Polígonos (Importados)");
     }
 
-    console.log('✅ Controle de camadas criado');
+    // Inicializar tile layers
+    tileLayers.padrao = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+    });
+
+    tileLayers.satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri',
+        maxZoom: 19
+    });
+
+    // Adicionar mapa padrão como inicial
+    tileLayerAtual = tileLayers.padrao.addTo(map);
+
+    // Criar controle customizado de toggle
+    criarToggleMapaBase();
+
+    // Configurar Scale-Dependent Rendering
+    configurarRenderizacaoPorZoom();
+
+    console.log('✅ Controle de camadas criado (toggle + zoom inteligente)');
 }
+
+// Toggle profissional para seleção de mapa base
+function criarToggleMapaBase() {
+    const MapToggleControl = L.Control.extend({
+        options: { position: 'topright' },
+
+        onAdd: function (map) {
+            const container = L.DomUtil.create('div', 'mapa-toggle-control');
+            container.innerHTML = `
+                <button id="btn-mapa-padrao" class="map-toggle-btn active" title="Mapa Padrão">
+                    <i data-lucide="map" style="width:18px;height:18px;"></i>
+                </button>
+                <button id="btn-mapa-satelite" class="map-toggle-btn" title="Satélite">
+                    <i data-lucide="globe-2" style="width:18px;height:18px;"></i>
+                </button>
+            `;
+
+            // Prevenir propagação de eventos para o mapa
+            L.DomEvent.disableClickPropagation(container);
+            L.DomEvent.disableScrollPropagation(container);
+
+            return container;
+        }
+    });
+
+    new MapToggleControl().addTo(map);
+
+    // Aguardar DOM e adicionar listeners
+    setTimeout(() => {
+        document.getElementById('btn-mapa-padrao')?.addEventListener('click', () => setMapaBase('padrao'));
+        document.getElementById('btn-mapa-satelite')?.addEventListener('click', () => setMapaBase('satelite'));
+
+        // Renderizar ícones Lucide
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }, 100);
+}
+
+// Troca de mapa base
+function setMapaBase(tipo) {
+    if (!tileLayers[tipo]) return;
+
+    // Remover tile atual
+    if (tileLayerAtual) {
+        map.removeLayer(tileLayerAtual);
+    }
+
+    // Adicionar novo tile layer
+    tileLayerAtual = tileLayers[tipo].addTo(map);
+
+    // Atualizar UI dos botões
+    document.querySelectorAll('.map-toggle-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`btn-mapa-${tipo}`)?.classList.add('active');
+
+    console.log(`🗺️ Mapa alterado para: ${tipo}`);
+}
+
+// Scale-Dependent Rendering (performático)
+function configurarRenderizacaoPorZoom() {
+    // Cache do zoom anterior para evitar processamento desnecessário
+    let zoomAnterior = map.getZoom();
+
+    function ajustarVisibilidade() {
+        const zoom = map.getZoom();
+
+        // Só processa se mudou de faixa significativa
+        const faixaAnterior = getFaixaZoom(zoomAnterior);
+        const faixaAtual = getFaixaZoom(zoom);
+
+        if (faixaAnterior === faixaAtual) {
+            zoomAnterior = zoom;
+            return;
+        }
+
+        console.log(`🔍 Zoom ${zoom} (faixa: ${faixaAtual})`);
+
+        // Marcos: ocultar em visão continental (zoom < 8)
+        if (faixaAtual === 'continental' && map.hasLayer(marcosLayer)) {
+            marcosLayer.setStyle && marcosLayer.setStyle({ opacity: 0 });
+        } else if (!map.hasLayer(marcosLayer)) {
+            marcosLayer.addTo(map);
+        }
+
+        zoomAnterior = zoom;
+    }
+
+    // Executar ajuste inicial
+    ajustarVisibilidade();
+
+    // Hook no evento de zoom (já tem debounce pelo sistema)
+    map.on('zoomend', ajustarVisibilidade);
+}
+
+// Determina a faixa de zoom (minimiza processamento)
+function getFaixaZoom(zoom) {
+    if (zoom < 8) return 'continental';
+    if (zoom < 13) return 'regional';
+    return 'local';
+}
+
+// Expor funções globalmente
+window.setMapaBase = setMapaBase;
 
 function filtrarMarcosNoMapa() {
     const tipo = document.getElementById('map-filter-tipo').value;
