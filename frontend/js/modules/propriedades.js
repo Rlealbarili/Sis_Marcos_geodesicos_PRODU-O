@@ -173,6 +173,13 @@ function renderCardPropriedade(prop) {
                     " onclick="verPropriedadeNoMapa(${prop.id})">
                         <i data-lucide="map" style="width: 14px; height: 14px;"></i> Ver no Mapa
                     </button>
+                    <button class="btn btn-secondary" style="
+                        padding: 8px 14px; 
+                        font-size: 0.85rem; 
+                        flex: 1;
+                    " onclick="exportarPropriedadeDXF(${prop.id})" title="Exportar para AutoCAD">
+                        <i data-lucide="download" style="width: 14px; height: 14px;"></i> CAD
+                    </button>
                 ` : `
                     <button class="btn btn-secondary" style="
                         padding: 8px 14px; 
@@ -451,6 +458,18 @@ window.fecharModal = function (modalId) {
             if (form) form.reset();
         }
     }
+};
+
+// ========================================
+// EXPORTAR PROPRIEDADE PARA DXF (CAD)
+// Protocolo Petrovich: Exportação profissional
+// ========================================
+window.exportarPropriedadeDXF = function (propriedadeId) {
+    console.log(`[DXF Export] Exportando propriedade ID: ${propriedadeId}`);
+
+    // Abre o download em nova aba
+    const url = `${window.API_URL}/api/propriedades/${propriedadeId}/dxf`;
+    window.open(url, '_blank');
 };
 
 console.log('✅ propriedades.js carregado');

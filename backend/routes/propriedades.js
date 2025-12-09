@@ -333,4 +333,128 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// ========================================
+// GET /api/propriedades/:id/dxf - Exportar DXF
+// Protocolo Petrovich: Exportação CAD Profissional
+// ========================================
+const { generateDXF } = require('../utils/dxf-generator');
+
+router.get('/:id/dxf', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`[DXF Export] Iniciando exportação da propriedade ${id}`);
+
+        // 1. Buscar geometria (WGS84)
+        const result = await query(`
+            SELECT 
+                p.id, 
+                p.nome_propriedade, 
+                p.matricula,
+                p.municipio,
+                p.uf,
+                p.area_m2,
+                p.perimetro_m,
+                ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geojson
+            FROM propriedades p 
+            WHERE p.id = $1
+        `, [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Propriedade não encontrada'
+            });
+        }
+
+        const prop = result.rows[0];
+
+        if (!prop.geojson) {
+            return res.status(400).json({
+                success: false,
+                message: 'Propriedade não possui geometria para exportar'
+            });
+        }
+
+        const geojson = JSON.parse(prop.geojson);
+        console.log(`[DXF Export] Geometria: ${geojson.type}`);
+
+        // 2. Buscar vértices associados (se existirem)
+        let vertices = [];
+        try {
+            const verticesResult = await query(`
+                SELECT 
+                    nome, 
+                    ST_X(ST_Transform(coordenadas, 4326)) as lng,
+                    ST_Y(ST_Transform(coordenadas, 4326)) as lat,
+                    ordem
+                FROM vertices 
+                WHERE propriedade_id = $1
+                ORDER BY ordem
+            `, [id]);
+            vertices = verticesResult.rows;
+            console.log(`[DXF Export] Encontrados ${vertices.length} vértices`);
+        } catch (e) {
+            // Tabela de vértices não existe ou erro, continua sem eles
+            console.log('[DXF Export] Sem vértices associados');
+        }
+
+        // 3. Preparar dados para o Gerador DXF
+        const dxfData = {
+            perimetro: geojson.coordinates, // Array de coords [[lng,lat], ...]
+            marcos: vertices.map(v => ({
+                coords: [v.lng, v.lat],
+                nome: v.nome || `V${v.ordem}`
+            })),
+            textos: []
+        };
+
+        // Adicionar textos informativos no primeiro ponto do perímetro
+        if (geojson.coordinates && geojson.coordinates[0] && geojson.coordinates[0][0]) {
+            const firstCoord = geojson.coordinates[0][0];
+            dxfData.textos.push({
+                content: prop.nome_propriedade || 'Propriedade',
+                coords: firstCoord,
+                height: 5.0
+            });
+            if (prop.area_m2) {
+                dxfData.textos.push({
+                    content: `Area: ${Number(prop.area_m2).toFixed(2)} m2`,
+                    coords: [firstCoord[0], firstCoord[1] - 0.0001],
+                    height: 3.0
+                });
+            }
+            if (prop.matricula) {
+                dxfData.textos.push({
+                    content: `Matr: ${prop.matricula}`,
+                    coords: [firstCoord[0], firstCoord[1] - 0.0002],
+                    height: 2.5
+                });
+            }
+        }
+
+        // 4. Gerar DXF
+        const dxfContent = generateDXF(dxfData);
+        console.log(`[DXF Export] Arquivo gerado com ${dxfContent.length} bytes`);
+
+        // 5. Enviar como download
+        const filename = (prop.nome_propriedade || `propriedade_${id}`)
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .substring(0, 50);
+
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.dxf"`);
+        res.setHeader('Content-Type', 'application/dxf');
+        res.send(dxfContent);
+
+        console.log(`[DXF Export] Download enviado: ${filename}.dxf`);
+
+    } catch (error) {
+        console.error('[DXF Export] Erro:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao gerar arquivo DXF',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

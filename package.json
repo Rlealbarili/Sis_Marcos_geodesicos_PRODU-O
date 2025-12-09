@@ -15,6 +15,7 @@
     "author": "COGEP",
     "license": "ISC",
     "dependencies": {
+        "@turf/turf": "^7.3.1",
         "axios": "^1.12.2",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
@@ -31,7 +32,7 @@
         "pg": "^8.16.3",
         "pg-format": "^1.0.4",
         "playwright": "^1.57.0",
-        "proj4": "^2.19.10",
+        "proj4": "^2.20.2",
         "xml2js": "^0.6.2",
         "xmldom": "^0.6.0"
     },
