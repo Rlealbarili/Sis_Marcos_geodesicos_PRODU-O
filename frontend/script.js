@@ -18,8 +18,8 @@ let totalPaginas = 0;
 // =========================================
 // Esta definição é OBRIGATÓRIA para converter coordenadas UTM para Lat/Lng
 proj4.defs(
-  'EPSG:31982',
-  '+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'
+    'EPSG:31982',
+    '+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'
 );
 console.log('✅ EPSG:31982 definido:', proj4.defs('EPSG:31982'));
 
@@ -94,18 +94,18 @@ function showTab(tabName) {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    
+
     // Adicionar active no item clicado
     event.target.closest('.nav-item').classList.add('active');
-    
+
     // Esconder todos os conteúdos
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
-    
+
     // Mostrar conteúdo selecionado
     document.getElementById('tab-' + tabName).classList.add('active');
-    
+
     // Carregar dados específicos se necessário
     if (tabName === 'dashboard') {
         carregarEstatisticas();
@@ -180,15 +180,15 @@ async function carregarMarcosRecentes() {
     try {
         const response = await fetch(`${API_URL}/api/marcos?limit=10`);
         const data = await response.json();
-        
+
         if (data.success) {
             const tbody = document.getElementById('recentMarcos');
-            
+
             if (data.data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum marco cadastrado</td></tr>';
                 return;
             }
-            
+
             tbody.innerHTML = data.data.slice(0, 10).map(marco => `
                 <tr>
                     <td><strong>${marco.codigo}</strong></td>
@@ -215,16 +215,16 @@ async function buscarMarcos() {
         metodo: document.getElementById('filtro-metodo').value,
         limites: document.getElementById('filtro-limites').value
     };
-    
+
     const params = new URLSearchParams();
     Object.keys(filtros).forEach(key => {
         if (filtros[key]) params.append(key, filtros[key]);
     });
-    
+
     try {
         const response = await fetch(`${API_URL}/api/marcos?${params}`);
         const data = await response.json();
-        
+
         if (data.success) {
             exibirResultados(data.data);
         }
@@ -237,14 +237,14 @@ async function buscarMarcos() {
 function exibirResultados(marcos) {
     const tbody = document.getElementById('resultTable');
     const countElement = document.getElementById('result-count');
-    
+
     countElement.textContent = marcos.length;
-    
+
     if (marcos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum marco encontrado</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = marcos.map(marco => `
         <tr>
             <td><strong>${marco.codigo}</strong></td>
@@ -272,8 +272,8 @@ function limparFiltros() {
     document.getElementById('filtro-lote').value = '';
     document.getElementById('filtro-metodo').value = '';
     document.getElementById('filtro-limites').value = '';
-    
-    document.getElementById('resultTable').innerHTML = 
+
+    document.getElementById('resultTable').innerHTML =
         '<tr><td colspan="10" class="text-center">Use os filtros acima para buscar marcos</td></tr>';
     document.getElementById('result-count').textContent = '0';
 }
@@ -282,10 +282,10 @@ function limparFiltros() {
 
 function setupFormCadastro() {
     const form = document.getElementById('formCadastro');
-    
-    form.addEventListener('submit', async function(e) {
+
+    form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const marco = {
             codigo: document.getElementById('cad-codigo').value,
             tipo: document.getElementById('cad-tipo').value,
@@ -303,7 +303,7 @@ function setupFormCadastro() {
             observacoes: document.getElementById('cad-observacoes').value,
             usuario_cadastro: document.getElementById('cad-usuario').value || localStorage.getItem('userName')
         };
-        
+
         try {
             const response = await fetch(`${API_URL}/api/marcos`, {
                 method: 'POST',
@@ -312,9 +312,9 @@ function setupFormCadastro() {
                 },
                 body: JSON.stringify(marco)
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 showToast('Marco cadastrado com sucesso!', 'success');
                 limparFormulario();
@@ -338,20 +338,20 @@ function limparFormulario() {
 function setupImportacao() {
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileImport');
-    
+
     uploadArea.addEventListener('click', () => {
         fileInput.click();
     });
-    
+
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragover');
     });
-    
+
     uploadArea.addEventListener('dragleave', () => {
         uploadArea.classList.remove('dragover');
     });
-    
+
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
@@ -360,7 +360,7 @@ function setupImportacao() {
             importarArquivo(files[0]);
         }
     });
-    
+
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             importarArquivo(e.target.files[0]);
@@ -371,17 +371,17 @@ function setupImportacao() {
 async function importarArquivo(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
         showToast('Importando dados...', 'info');
-        
+
         const response = await fetch(`${API_URL}/api/importar`, {
             method: 'POST',
             body: formData
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showToast(data.message, 'success');
             carregarEstatisticas();
@@ -399,10 +399,10 @@ async function importarArquivo(file) {
 async function exportarDados() {
     try {
         showToast('Gerando arquivo de exportação...', 'info');
-        
+
         const response = await fetch(`${API_URL}/api/exportar`);
         const blob = await response.blob();
-        
+
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -411,7 +411,7 @@ async function exportarDados() {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         showToast('Arquivo exportado com sucesso!', 'success');
     } catch (error) {
         console.error('Erro ao exportar:', error);
@@ -425,7 +425,7 @@ async function verDetalhes(id) {
     try {
         const response = await fetch(`${API_URL}/api/marcos/${id}`);
         const data = await response.json();
-        
+
         if (data.success) {
             marcoAtual = data.data;
             exibirModal(data.data);
@@ -439,7 +439,7 @@ async function verDetalhes(id) {
 function exibirModal(marco) {
     const modal = document.getElementById('modalDetalhes');
     const modalBody = document.getElementById('modalBody');
-    
+
     modalBody.innerHTML = `
         <div class="detail-row">
             <div class="detail-label">Código:</div>
@@ -496,7 +496,7 @@ function exibirModal(marco) {
         </div>
         ` : ''}
     `;
-    
+
     modal.classList.add('active');
 }
 
@@ -507,18 +507,18 @@ function fecharModal() {
 
 async function excluirMarco() {
     if (!marcoAtual) return;
-    
+
     if (!confirm(`Tem certeza que deseja excluir o marco ${marcoAtual.codigo}?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/marcos/${marcoAtual.id}`, {
             method: 'DELETE'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showToast('Marco excluído com sucesso!', 'success');
             fecharModal();
@@ -539,7 +539,7 @@ function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = `toast ${type} show`;
-    
+
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
@@ -573,15 +573,15 @@ function toggleUserMenu() {
 function toggleSidebar() {
     // Busca o elemento da barra lateral (classe 'sidebar' [4])
     const sidebar = document.querySelector('.sidebar');
-    
+
     if (sidebar) {
         // Usa toggle para adicionar ou remover a classe 'active'
         sidebar.classList.toggle('active');
-        
+
         // Fornecer feedback usando a função showToast existente [6]
         if (sidebar.classList.contains('active')) {
             // 'info' é uma classe de Toast existente [1, 7]
-            showToast('Menu de navegação aberto.', 'info'); 
+            showToast('Menu de navegação aberto.', 'info');
         } else {
             showToast('Menu de navegação fechado.', 'info');
         }
@@ -589,7 +589,7 @@ function toggleSidebar() {
 }
 
 // Fechar modal ao clicar fora
-window.onclick = function(event) {
+window.onclick = function (event) {
     const modal = document.getElementById('modalDetalhes');
     if (event.target === modal) {
         fecharModal();
@@ -683,6 +683,9 @@ function inicializarMapa() {
         }).addTo(map);
 
         console.log('✅ Mapa criado');
+
+        // Exportar mapa para acesso global por módulos externos
+        window.map = map;
 
         // Inicializar ClusterManager (Supercluster)
         if (typeof ClusterManager !== 'undefined') {
@@ -817,8 +820,8 @@ function obterCoordenadasMarco(marco) {
 
         // Validar range UTM Zone 22S
         const isUTMValid = !isNaN(e) && !isNaN(n) &&
-                           e >= 166000 && e <= 834000 &&
-                           n >= 0 && n <= 10000000;
+            e >= 166000 && e <= 834000 &&
+            n >= 0 && n <= 10000000;
 
         if (isUTMValid) {
             try {
@@ -975,17 +978,17 @@ async function carregarPoligonosNoMapa() {
     try {
         console.log('🗺️ Carregando polígonos no mapa...');
         const response = await fetch(`${API_URL}/api/poligonos`);
-        
+
         if (!response.ok) {
             console.warn(`⚠️ API /api/poligonos retornou ${response.status}`);
             return;
         }
-        
+
         const geojson = await response.json();
-        
+
         // Suporta tanto formato antigo quanto novo (GeoJSON FeatureCollection)
         let features = [];
-        
+
         if (geojson.type === 'FeatureCollection' && geojson.features) {
             features = geojson.features;
         } else if (geojson.success && geojson.data) {
@@ -996,21 +999,21 @@ async function carregarPoligonosNoMapa() {
                 geometry: typeof p.geometria === 'string' ? JSON.parse(p.geometria) : p.geometry
             }));
         }
-        
+
         if (features.length === 0) {
             console.log('📭 Nenhum polígono encontrado.');
             return;
         }
-        
+
         // Limpa camada existente
         if (poligonosLayer) poligonosLayer.clearLayers();
 
         features.forEach(feature => {
             const props = feature.properties || {};
             const geometry = feature.geometry;
-            
+
             if (!geometry || !geometry.coordinates) return;
-            
+
             // GeoJSON usa [lng, lat], Leaflet usa [lat, lng]
             let coords;
             if (geometry.type === 'Polygon') {
@@ -1022,10 +1025,10 @@ async function carregarPoligonosNoMapa() {
                 console.warn('Tipo de geometria não suportado:', geometry.type);
                 return;
             }
-            
+
             // Estilo baseado no tipo
             const cor = getCorTipo(props.tipo) || '#84c225';
-            
+
             const polygon = L.polygon(coords, {
                 color: cor,
                 fillColor: cor,
@@ -1048,7 +1051,7 @@ async function carregarPoligonosNoMapa() {
                         </p>
                         <p style="margin: 8px 0; display: flex; justify-content: space-between;">
                             <span style="color: #666;">Área:</span>
-                            <strong>${props.area_ha ? props.area_ha + ' ha' : (props.area_m2 ? (props.area_m2/10000).toFixed(4) + ' ha' : '-')}</strong>
+                            <strong>${props.area_ha ? props.area_ha + ' ha' : (props.area_m2 ? (props.area_m2 / 10000).toFixed(4) + ' ha' : '-')}</strong>
                         </p>
                         <p style="margin: 8px 0; display: flex; justify-content: space-between;">
                             <span style="color: #666;">Perímetro:</span>
@@ -1074,14 +1077,14 @@ async function carregarPoligonosNoMapa() {
         });
 
         console.log(`✅ ${features.length} polígonos carregados no mapa.`);
-        
+
     } catch (error) {
         console.error('❌ Erro ao carregar polígonos:', error);
     }
 }
 
 // Função auxiliar para zoom em polígono específico
-window.zoomToPoligono = function(propriedadeId) {
+window.zoomToPoligono = function (propriedadeId) {
     if (!poligonosLayer) return;
     poligonosLayer.eachLayer(layer => {
         if (layer.feature && layer.feature.properties && layer.feature.properties.id === propriedadeId) {
@@ -1338,7 +1341,7 @@ function iniciarCriacaoPoligono() {
         showToast('Já existe um polígono em criação. Finalize ou cancele primeiro.', 'error');
         return;
     }
-    
+
     showToast('Clique nos marcos no mapa para criar o polígono. Mínimo 3 pontos.', 'info');
     pontosPoligono = [];
     poligonoEmCriacao = L.polygon([], {
@@ -1348,23 +1351,23 @@ function iniciarCriacaoPoligono() {
         weight: 2,
         dashArray: '5, 5'
     }).addTo(map);
-    
+
     marcadores.forEach(marker => {
         marker.on('click', adicionarPontoAoPoligono);
     });
-    
+
     mostrarControlesPoligono();
 }
 
 function adicionarPontoAoPoligono(e) {
     const marker = e.target;
     const latlng = marker.getLatLng();
-    
+
     pontosPoligono.push({
         latlng: latlng,
         marco: marker.marcoData
     });
-    
+
     const coords = pontosPoligono.map(p => p.latlng);
     poligonoEmCriacao.setLatLngs(coords);
     showToast(`Ponto ${pontosPoligono.length} adicionado`, 'success');
@@ -1391,14 +1394,14 @@ function finalizarPoligono() {
         showToast('Adicione pelo menos 3 pontos', 'error');
         return;
     }
-    
+
     const coords = pontosPoligono.map(p => [p.latlng.lng, p.latlng.lat]);
     coords.push(coords[0]);
-    
+
     const polygon = turf.polygon([coords]);
     const area = turf.area(polygon);
     const perimetro = turf.length(polygon, { units: 'meters' });
-    
+
     abrirModalSalvarTerreno(coords, area, perimetro);
 }
 
@@ -1408,14 +1411,14 @@ function cancelarPoligono() {
         poligonoEmCriacao = null;
     }
     pontosPoligono = [];
-    
+
     marcadores.forEach(marker => {
         marker.off('click', adicionarPontoAoPoligono);
     });
-    
+
     const controles = document.getElementById('poligono-controles');
     if (controles) controles.remove();
-    
+
     showToast('Criação de terreno cancelada', 'info');
 }
 
@@ -1503,14 +1506,14 @@ async function salvarTerreno(coords, area, perimetro) {
     const clienteId = document.getElementById('terreno-cliente').value;
     const status = document.getElementById('terreno-status').value;
     const observacoes = document.getElementById('terreno-observacoes').value;
-    
+
     if (!codigo || !nome) {
         showToast('Preencha os campos obrigatórios', 'error');
         return;
     }
-    
+
     const geometria = { type: 'Polygon', coordinates: [coords] };
-    
+
     let clienteNome = null;
     let clienteCpf = null;
     if (clienteId) {
@@ -1519,25 +1522,25 @@ async function salvarTerreno(coords, area, perimetro) {
         clienteNome = selectedOption.text;
         clienteCpf = selectedOption.dataset.cpf;
     }
-    
+
     const marcosIds = pontosPoligono.map(p => p.marco.id);
-    
+
     const terreno = {
         codigo, nome, cliente_id: clienteId || null, cliente_nome: clienteNome,
         cliente_cpf_cnpj: clienteCpf, area_m2: area, perimetro_m: perimetro,
         geometria: JSON.stringify(geometria), observacoes, status,
         marcos_ids: marcosIds, usuario_criacao: localStorage.getItem('userName')
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/poligonos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(terreno)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showToast('Terreno salvo com sucesso!', 'success');
             fecharModalTerreno();
@@ -1557,15 +1560,15 @@ async function salvarTerreno(coords, area, perimetro) {
 async function buscarTerrenos() {
     const clienteId = document.getElementById('filtro-terreno-cliente').value;
     const status = document.getElementById('filtro-terreno-status').value;
-    
+
     const params = new URLSearchParams();
     if (clienteId) params.append('cliente_id', clienteId);
     if (status) params.append('status', status);
-    
+
     try {
         const response = await fetch(`${API_URL}/api/poligonos?${params}`);
         const data = await response.json();
-        
+
         if (data.success) {
             exibirTerrenos(data.data);
         }
@@ -1577,12 +1580,12 @@ async function buscarTerrenos() {
 
 function exibirTerrenos(terrenos) {
     const tbody = document.getElementById('terrenosTable');
-    
+
     if (terrenos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum terreno encontrado</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = terrenos.map(t => `
         <tr>
             <td><strong>${t.codigo}</strong></td>
@@ -1607,7 +1610,7 @@ async function verDetalhesTerreno(id) {
     try {
         const response = await fetch(`${API_URL}/api/poligonos/${id}`);
         const data = await response.json();
-        
+
         if (data.success) {
             exibirModalDetalhesTerreno(data.data);
         }
@@ -1669,10 +1672,10 @@ async function centralizarNoTerreno(id) {
 function setupFormCliente() {
     const form = document.getElementById('formCliente');
     if (!form) return;
-    
-    form.addEventListener('submit', async function(e) {
+
+    form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const cliente = {
             nome: document.getElementById('cliente-nome').value,
             cpf_cnpj: document.getElementById('cliente-cpf').value,
@@ -1680,16 +1683,16 @@ function setupFormCliente() {
             telefone: document.getElementById('cliente-telefone').value,
             endereco: document.getElementById('cliente-endereco').value
         };
-        
+
         try {
             const response = await fetch(`${API_URL}/api/clientes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(cliente)
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 showToast('Cliente cadastrado com sucesso!', 'success');
                 limparFormularioCliente();
@@ -1712,15 +1715,15 @@ async function carregarClientes() {
     try {
         const response = await fetch(`${API_URL}/api/clientes`);
         const data = await response.json();
-        
+
         if (data.success) {
             const tbody = document.getElementById('clientesTable');
-            
+
             if (data.data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum cliente cadastrado</td></tr>';
                 return;
             }
-            
+
             tbody.innerHTML = data.data.map(c => `
                 <tr>
                     <td>${c.nome}</td>
@@ -1731,7 +1734,7 @@ async function carregarClientes() {
                     <td><button class="btn btn-primary btn-sm">Editar</button></td>
                 </tr>
             `).join('');
-            
+
             carregarClientesSelect('filtro-terreno-cliente');
         }
     } catch (error) {
@@ -1743,12 +1746,12 @@ async function carregarClientesSelect(selectId) {
     try {
         const response = await fetch(`${API_URL}/api/clientes`);
         const data = await response.json();
-        
+
         if (data.success) {
             const select = document.getElementById(selectId);
             if (!select) return;
             const primeiraOpcao = select.querySelector('option:first-child').outerHTML;
-            select.innerHTML = primeiraOpcao + data.data.map(c => 
+            select.innerHTML = primeiraOpcao + data.data.map(c =>
                 `<option value="${c.id}" data-cpf="${c.cpf_cnpj}">${c.nome}</option>`
             ).join('');
         }
@@ -1761,7 +1764,7 @@ async function carregarClientesSelect(selectId) {
 
 function editarMarco() {
     if (!marcoAtual) return;
-    
+
     document.getElementById('edit-codigo').value = marcoAtual.codigo || '';
     document.getElementById('edit-tipo').value = marcoAtual.tipo || '';
     document.getElementById('edit-localizacao').value = marcoAtual.localizacao || '';
@@ -1776,7 +1779,7 @@ function editarMarco() {
     document.getElementById('edit-lote').value = marcoAtual.lote || '';
     document.getElementById('edit-data').value = marcoAtual.data_levantamento ? marcoAtual.data_levantamento.split('T')[0] : '';
     document.getElementById('edit-observacoes').value = marcoAtual.observacoes || '';
-    
+
     fecharModal();
     document.getElementById('modalEdicao').classList.add('active');
 }
@@ -1788,7 +1791,7 @@ function fecharModalEdicao() {
 
 async function salvarEdicao() {
     if (!marcoAtual) return;
-    
+
     const marcoEditado = {
         codigo: document.getElementById('edit-codigo').value,
         tipo: document.getElementById('edit-tipo').value,
@@ -1805,16 +1808,16 @@ async function salvarEdicao() {
         data_levantamento: document.getElementById('edit-data').value,
         observacoes: document.getElementById('edit-observacoes').value
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/marcos/${marcoAtual.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(marcoEditado)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showToast('Marco atualizado com sucesso!', 'success');
             fecharModalEdicao();
@@ -2078,9 +2081,9 @@ async function executarValidacao(forcarRevalidacao = false) {
                 resultadoDiv.innerHTML = `
                     <h4 style="margin-bottom: 10px;">✅ Validação Concluída!</h4>
                     <p><strong>Total processado:</strong> ${stats.total} marcos</p>
-                    <p><strong>Válidos:</strong> ${stats.validos} (${((stats.validos/stats.total)*100).toFixed(1)}%)</p>
-                    <p><strong>Inválidos:</strong> ${stats.invalidos} (${((stats.invalidos/stats.total)*100).toFixed(1)}%)</p>
-                    <p><strong>Tempo:</strong> ${(stats.tempo_ms/1000).toFixed(2)}s</p>
+                    <p><strong>Válidos:</strong> ${stats.validos} (${((stats.validos / stats.total) * 100).toFixed(1)}%)</p>
+                    <p><strong>Inválidos:</strong> ${stats.invalidos} (${((stats.invalidos / stats.total) * 100).toFixed(1)}%)</p>
+                    <p><strong>Tempo:</strong> ${(stats.tempo_ms / 1000).toFixed(2)}s</p>
                 `;
 
                 showToast('Validação concluída!', 'success');
@@ -2327,7 +2330,7 @@ function trocarAba(nomeAba) {
     abaAtual = nomeAba;
 
     // Carregar dados da aba
-    switch(nomeAba) {
+    switch (nomeAba) {
         case 'mapa':
             // Mapa já está carregado
             if (map) {
@@ -3188,7 +3191,7 @@ async function salvarMemorialCompletoAba() {
     try {
         btnSalvar.disabled = true;
         btnSalvar.innerHTML = '<span class="loading"></span> Salvando...';
-        if(mensagemDiv) mensagemDiv.innerHTML = '';
+        if (mensagemDiv) mensagemDiv.innerHTML = '';
 
         // 1. Coletar dados do cliente
         const tipoCliente = document.querySelector('input[name="tipo-cliente-aba"]:checked').value;
@@ -3293,7 +3296,7 @@ async function salvarMemorialCompletoAba() {
 
     } catch (error) {
         console.error('❌ Erro ao salvar:', error);
-        if(mensagemDiv) {
+        if (mensagemDiv) {
             mensagemDiv.innerHTML = `<div class="mensagem mensagem-erro">❌ ${error.message}</div>`;
         } else {
             alert(`Erro: ${error.message}`);
@@ -3585,7 +3588,7 @@ function atualizarMarcadores() {
 
         // Handler de Tooltip Defensivo (A CORREÇÃO CRÍTICA ESTÁ AQUI)
         if (!window.marcoTooltipHandler) {
-            window.marcoTooltipHandler = function() {
+            window.marcoTooltipHandler = function () {
                 const currentZoom = map.getZoom();
                 if (!window.marcadoresLayer) return;
 
@@ -4130,9 +4133,9 @@ function renderizarResultadosMarcos(marcos) {
             </thead>
             <tbody>
                 ${marcosPagina.map(marco => {
-                    // Converter coordenadas UTM para Lat/Lng para exibir no mapa
-                    const coords = marco.coordenada_e && marco.coordenada_n ? utmParaLatLng(marco.coordenada_e, marco.coordenada_n) : null;
-                    return `
+        // Converter coordenadas UTM para Lat/Lng para exibir no mapa
+        const coords = marco.coordenada_e && marco.coordenada_n ? utmParaLatLng(marco.coordenada_e, marco.coordenada_n) : null;
+        return `
                     <tr>
                         <td><strong>${marco.codigo}</strong></td>
                         <td><span class="badge badge-${marco.tipo.toLowerCase()}">${marco.tipo}</span></td>
@@ -4155,7 +4158,7 @@ function renderizarResultadosMarcos(marcos) {
                         </td>
                     </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
     `;
@@ -4697,7 +4700,7 @@ async function carregarMarcosLista(pagina = 1) {
                 <p>Buscando dados...</p>
             </div>
         `;
-        if(typeof lucide !== 'undefined') lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 
         // 3. Requisição
         const response = await fetch(url);
@@ -4722,7 +4725,7 @@ async function carregarMarcosLista(pagina = 1) {
             `;
         } else {
             // Usa a função global criarCardMarco se existir, ou define fallback
-            const renderCard = window.criarCardMarco || function(m) {
+            const renderCard = window.criarCardMarco || function (m) {
                 return `<div class="card" style="padding:1rem;"><strong>${m.codigo}</strong><br>${m.localizacao || ''}</div>`;
             };
 
@@ -4736,7 +4739,7 @@ async function carregarMarcosLista(pagina = 1) {
     } catch (error) {
         console.error('❌ Erro na listagem:', error);
         const container = document.getElementById('marcos-grid');
-        if(container) container.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar dados: ${error.message}</p>`;
+        if (container) container.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar dados: ${error.message}</p>`;
     }
 }
 
@@ -4806,7 +4809,7 @@ async function carregarPropriedades() {
 
         // Criar camada de propriedades
         propriedadesLayer = L.geoJSON(geojson, {
-            style: function(feature) {
+            style: function (feature) {
                 const tipo = feature.properties.tipo;
 
                 let style = {
@@ -4827,7 +4830,7 @@ async function carregarPropriedades() {
 
                 return style;
             },
-            onEachFeature: function(feature, layer) {
+            onEachFeature: function (feature, layer) {
                 const props = feature.properties;
 
                 const popupContent = `
@@ -4848,19 +4851,19 @@ async function carregarPropriedades() {
                 layer.bindPopup(popupContent, { maxWidth: 350 });
 
                 // Highlight ao passar mouse
-                layer.on('mouseover', function() {
+                layer.on('mouseover', function () {
                     this.setStyle({
                         weight: 4,  // Aumentar espessura da borda para 4
                         fillOpacity: 0.4  // Aumentar opacidade para 0.4
                     });
                 });
 
-                layer.on('mouseout', function() {
+                layer.on('mouseout', function () {
                     propriedadesLayer.resetStyle(this);
                 });
 
                 // Log ao clicar
-                layer.on('click', function() {
+                layer.on('click', function () {
                     console.log('📍 Propriedade clicada:', props);
                 });
             }
@@ -4955,27 +4958,27 @@ console.log('💡 Use recarregarPropriedades() para atualizar');
 // =========================================================
 window.addEventListener('load', () => {
     console.log('🔧 Configurando event listeners dos botões de abas...');
-    
+
     const tabButtons = document.querySelectorAll('.tab-button');
-    
+
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
             console.log(`🔘 Botão clicado: ${tabName}`);
-            
+
             // Remover active de todos os botões
             document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
             button.classList.add('active');
-            
+
             // Remover active de todas as abas
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // Adicionar active na aba selecionada
             const tabContent = document.getElementById(`tab-${tabName}`);
             if (tabContent) {
                 tabContent.classList.add('active');
             }
-            
+
             // Carregar dados específicos da aba
             if (tabName === 'marcos' && typeof window.carregarMarcosLista === 'function') {
                 console.log('📍 Carregando lista de marcos...');
@@ -4992,7 +4995,7 @@ window.addEventListener('load', () => {
             }
         });
     });
-    
+
     console.log('✅ Event listeners configurados com sucesso!');
 });
 
@@ -5001,20 +5004,20 @@ window.addEventListener('load', () => {
 // =========================================================
 window.addEventListener('load', () => {
     console.log('🔧 Configurando event listeners do sidebar...');
-    
+
     const sidebarLinks = document.querySelectorAll('.nav-link');
-    
+
     sidebarLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             const tabName = link.getAttribute('data-tab');
-            
+
             if (tabName) {
                 e.preventDefault();
                 console.log(`📱 Sidebar clicado: ${tabName}`);
-                
+
                 // Encontrar e clicar no botão correspondente
                 const correspondingButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
-                
+
                 if (correspondingButton) {
                     correspondingButton.click();
                     console.log(`✅ Botão ${tabName} acionado via sidebar`);
@@ -5029,7 +5032,7 @@ window.addEventListener('load', () => {
 });
 
 // Adicionando listener para o campo de busca global
-document.getElementById('global-search-input')?.addEventListener('keydown', function(e) {
+document.getElementById('global-search-input')?.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
         const termo = this.value;
         if (termo) {
@@ -5052,14 +5055,14 @@ document.getElementById('global-search-input')?.addEventListener('keydown', func
 // =========================================================
 
 // Ação 1: Abre a janela do sistema operacional para seleção de arquivo
-window.acionarSeletorCSV = function(e) {
+window.acionarSeletorCSV = function (e) {
     if (e) e.stopPropagation();
     const input = document.getElementById('file-input-importar');
     if (input) input.click();
 };
 
 // Ação 2: Feedback visual ao selecionar arquivo
-window.csvSelecionado = function(input) {
+window.csvSelecionado = function (input) {
     const display = document.getElementById('nome-arquivo-csv');
     const btnAcao = document.getElementById('btn-executar-importacao');
 
@@ -5079,16 +5082,16 @@ window.csvSelecionado = function(input) {
 };
 
 // Ação 3: Motor de envio para o backend
-window.importarPlanilhaMarcos = async function(e, forcarProducao) {
+window.importarPlanilhaMarcos = async function (e, forcarProducao) {
     forcarProducao = forcarProducao || false;
     if (e) e.preventDefault();
-    
+
     const fileInput = document.getElementById('file-input-importar');
     const checkboxSimulacao = document.getElementById('check-simulacao');
     const resultDiv = document.getElementById('resultado-importacao-planilha');
     const painelUpload = document.getElementById('painel-upload');
     const btnPrincipal = document.getElementById('btn-executar-importacao');
-    
+
     if (!fileInput || !fileInput.files[0]) {
         alert("Selecione um arquivo.");
         return;
@@ -5102,9 +5105,9 @@ window.importarPlanilhaMarcos = async function(e, forcarProducao) {
         btnPrincipal.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Processando...';
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
-    
+
     if (painelUpload && !forcarProducao) painelUpload.style.display = 'none';
-    
+
     if (resultDiv) {
         resultDiv.style.display = 'block';
         resultDiv.innerHTML = '<div style="padding:30px;text-align:center;background:var(--bg-secondary);border-radius:8px"><div class="spinner" style="margin:0 auto 15px auto"></div><h3 style="margin:0;font-size:16px">Processando dados...</h3></div>';
@@ -5133,7 +5136,7 @@ window.importarPlanilhaMarcos = async function(e, forcarProducao) {
             const icon = result.modo_simulacao ? 'flask-conical' : 'check-circle-2';
             const title = result.modo_simulacao ? 'Simulação Concluída' : 'Importação Finalizada';
             const corIcone = result.modo_simulacao ? '#3B82F6' : '#10B981';
-            
+
             var htmlStats = '<div style="background:var(--bg-primary);border:1px solid var(--border-primary);border-radius:8px;padding:20px">';
             htmlStats += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid var(--border-primary)">';
             htmlStats += '<i data-lucide="' + icon + '" style="color:' + corIcone + ';width:24px;height:24px"></i>';
@@ -5144,7 +5147,7 @@ window.importarPlanilhaMarcos = async function(e, forcarProducao) {
             htmlStats += '<div style="text-align:center;padding:10px;background:rgba(16,185,129,0.1);border-radius:6px"><div style="font-size:11px;text-transform:uppercase;color:#059669">Válidos</div><div style="font-size:20px;font-weight:bold;color:#059669">' + result.estatisticas.validos + '</div></div>';
             htmlStats += '<div style="text-align:center;padding:10px;background:rgba(245,158,11,0.1);border-radius:6px"><div style="font-size:11px;text-transform:uppercase;color:#d97706">Pendentes</div><div style="font-size:20px;font-weight:bold;color:#d97706">' + result.estatisticas.pendentes + '</div></div>';
             htmlStats += '</div>';
-            
+
             if (result.modo_simulacao) {
                 htmlStats += '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">';
                 htmlStats += '<button class="btn btn-secondary" onclick="window.cancelarImportacao()">Descartar</button>';
@@ -5154,7 +5157,7 @@ window.importarPlanilhaMarcos = async function(e, forcarProducao) {
                 htmlStats += '<div style="text-align:center;margin-top:20px"><button class="btn btn-secondary" onclick="window.fecharModal(\'modal-importar-csv\')">Fechar</button></div>';
             }
             htmlStats += '</div>';
-            
+
             resultDiv.innerHTML = htmlStats;
             if (!result.modo_simulacao) {
                 if (window.carregarMarcosLista) window.carregarMarcosLista(1);
@@ -5179,13 +5182,13 @@ window.importarPlanilhaMarcos = async function(e, forcarProducao) {
 };
 
 // Ação 4: Cancelar importação
-window.cancelarImportacao = function() {
+window.cancelarImportacao = function () {
     window.fecharModal('modal-importar-csv');
 };
 
 // Ação 5: Fechar modal genérico
 if (typeof window.fecharModal !== 'function') {
-    window.fecharModal = function(modalId) {
+    window.fecharModal = function (modalId) {
         const modal = document.getElementById(modalId);
         if (modal) { modal.style.display = 'none'; modal.classList.remove('active'); }
         if (modalId === 'modal-importar-csv') {

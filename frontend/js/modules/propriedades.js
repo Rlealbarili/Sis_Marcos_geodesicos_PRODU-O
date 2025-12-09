@@ -287,16 +287,7 @@ window.verPropriedadeNoMapa = async function (propriedadeId) {
     console.log(`🗺️ Visualizando propriedade ID ${propriedadeId} no mapa...`);
 
     try {
-        // Navegar para o mapa
-        const btnMapa = document.querySelector('.nav-link[data-view="mapa"]');
-        if (btnMapa) {
-            btnMapa.click();
-        }
-
-        // Aguardar um pouco para o mapa carregar
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Buscar dados da propriedade
+        // Buscar dados da propriedade PRIMEIRO
         const response = await fetch(`${window.API_URL}/api/propriedades/${propriedadeId}`);
         const result = await response.json();
 
@@ -306,8 +297,10 @@ window.verPropriedadeNoMapa = async function (propriedadeId) {
 
         const prop = result.data;
 
-        // Verificar se tem geometria
-        if (!prop.geometry) {
+        // Verificar se tem geometria - usar 'geojson' que vem do backend
+        const geometryData = prop.geojson || prop.geometry;
+
+        if (!geometryData) {
             console.warn('⚠️ Propriedade sem geometria');
             if (typeof window.mostrarToast === 'function') {
                 window.mostrarToast('warning', 'Aviso', 'Esta propriedade não possui coordenadas válidas para exibir no mapa.');
@@ -315,15 +308,35 @@ window.verPropriedadeNoMapa = async function (propriedadeId) {
             return;
         }
 
-        // Converter geometria para GeoJSON se necessário
-        let geoJson;
-        if (typeof prop.geometry === 'string') {
-            geoJson = JSON.parse(prop.geometry);
-        } else {
-            geoJson = prop.geometry;
+        // Navegar para o mapa
+        const btnMapa = document.querySelector('.nav-link[data-view="mapa"]');
+        if (btnMapa) {
+            btnMapa.click();
         }
 
-        // Criar layer do polígono
+        // Aguardar o mapa carregar completamente
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Verificar se o mapa existe
+        if (!window.map) {
+            console.error('❌ Mapa não inicializado');
+            if (typeof window.mostrarToast === 'function') {
+                window.mostrarToast('error', 'Erro', 'Mapa não está disponível');
+            }
+            return;
+        }
+
+        // Converter geometria para GeoJSON se necessário
+        let geoJson;
+        if (typeof geometryData === 'string') {
+            geoJson = JSON.parse(geometryData);
+        } else {
+            geoJson = geometryData;
+        }
+
+        console.log('📍 GeoJSON da propriedade:', geoJson);
+
+        // Cor baseada no tipo
         const isRural = prop.tipo === 'RURAL';
         const cor = isRural ? '#10B981' : '#3B82F6';
 
@@ -332,35 +345,59 @@ window.verPropriedadeNoMapa = async function (propriedadeId) {
             window.map.removeLayer(window.highlightLayer);
         }
 
-        // Criar novo layer
+        // Criar novo layer com estilo destacado
         window.highlightLayer = L.geoJSON(geoJson, {
             style: {
                 color: cor,
-                weight: 3,
+                weight: 4,
                 opacity: 1,
                 fillColor: cor,
-                fillOpacity: 0.3
+                fillOpacity: 0.25,
+                dashArray: null
             }
         }).addTo(window.map);
 
-        // Popup com informações
-        window.highlightLayer.bindPopup(`
-            <div style="min-width: 200px;">
-                <h4 style="margin: 0 0 10px 0; color: ${cor};">${prop.nome_propriedade || 'Propriedade'}</h4>
-                <div style="font-size: 0.9rem;">
-                    <strong>Tipo:</strong> ${prop.tipo === 'RURAL' ? 'Rural' : 'Urbana'}<br>
-                    <strong>Matrícula:</strong> ${prop.matricula || 'N/A'}<br>
-                    <strong>Local:</strong> ${prop.municipio || 'N/A'} - ${prop.uf || 'N/A'}<br>
-                    ${prop.area_m2 ? `<strong>Área:</strong> ${(prop.area_m2 / 10000).toFixed(4)} ha` : ''}
-                </div>
-            </div>
-        `).openPopup();
+        // Obter os bounds do polígono
+        const bounds = window.highlightLayer.getBounds();
 
-        // Centralizar mapa no polígono
-        window.map.fitBounds(window.highlightLayer.getBounds(), {
-            padding: [50, 50],
-            maxZoom: 15
+        if (!bounds.isValid()) {
+            console.error('❌ Bounds inválidos para a propriedade');
+            if (typeof window.mostrarToast === 'function') {
+                window.mostrarToast('error', 'Erro', 'Coordenadas da propriedade são inválidas');
+            }
+            return;
+        }
+
+        // Centralizar mapa no polígono com animação e zoom adequado
+        // Usando padding maior para garantir que a propriedade fique bem visível no centro
+        window.map.fitBounds(bounds, {
+            padding: [80, 80],      // Padding em pixels ao redor do polígono
+            maxZoom: 17,            // Zoom máximo permitido
+            animate: true,          // Animação suave
+            duration: 0.5           // Duração da animação em segundos
         });
+
+        // Popup com informações - abrir após um delay para dar tempo do zoom
+        setTimeout(() => {
+            window.highlightLayer.bindPopup(`
+                <div style="min-width: 220px; padding: 5px;">
+                    <h4 style="margin: 0 0 10px 0; color: ${cor}; font-size: 1.1rem;">
+                        🏠 ${prop.nome_propriedade || 'Propriedade'}
+                    </h4>
+                    <div style="font-size: 0.9rem; line-height: 1.5;">
+                        <strong>Tipo:</strong> ${prop.tipo === 'RURAL' ? '🌾 Rural' : '🏢 Urbana'}<br>
+                        <strong>Matrícula:</strong> ${prop.matricula || 'N/A'}<br>
+                        <strong>Local:</strong> ${prop.municipio || 'N/A'} - ${prop.uf || 'N/A'}<br>
+                        ${prop.area_m2 ? `<strong>Área:</strong> ${(prop.area_m2 / 10000).toFixed(4)} ha (${parseFloat(prop.area_m2).toLocaleString('pt-BR')} m²)` : ''}
+                    </div>
+                </div>
+            `).openPopup();
+        }, 600);
+
+        // Mostrar toast de sucesso
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast('success', 'Propriedade localizada', `${prop.nome_propriedade} exibida no mapa`);
+        }
 
         console.log('✅ Propriedade exibida no mapa:', prop.nome_propriedade);
 
