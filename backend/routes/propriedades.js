@@ -378,33 +378,45 @@ router.get('/:id/dxf', async (req, res) => {
         const geojson = JSON.parse(prop.geojson);
         console.log(`[DXF Export] Geometria: ${geojson.type}`);
 
-        // 2. Buscar vértices associados (se existirem)
-        let vertices = [];
+        // 2. Busca Inteligente de Marcos (Com Tolerância Espacial)
+        // Usa bloco try/catch isolado para não derrubar a exportação se esta query falhar
+        let marcosData = [];
         try {
-            const verticesResult = await query(`
-                SELECT 
-                    nome, 
-                    ST_X(ST_Transform(coordenadas, 4326)) as lng,
-                    ST_Y(ST_Transform(coordenadas, 4326)) as lat,
-                    ordem
-                FROM vertices 
-                WHERE propriedade_id = $1
-                ORDER BY ordem
+            /* Lógica ST_DWithin: Busca pontos que estão a até 0.000001 graus (~10cm) 
+               do polígono. Isso corrige erros de precisão flutuante onde o ponto 
+               está matematicamente "fora" por milímetros.
+            */
+            const marcosQuery = await query(`
+                SELECT codigo, tipo, 
+                       ST_X(geometria) as lng, 
+                       ST_Y(geometria) as lat
+                FROM marcos 
+                WHERE ST_DWithin(
+                    geometria, 
+                    (SELECT geometry FROM propriedades WHERE id = $1), 
+                    0.000001
+                )
             `, [id]);
-            vertices = verticesResult.rows;
-            console.log(`[DXF Export] Encontrados ${vertices.length} vértices`);
-        } catch (e) {
-            // Tabela de vértices não existe ou erro, continua sem eles
-            console.log('[DXF Export] Sem vértices associados');
+
+            if (marcosQuery.rows.length > 0) {
+                marcosData = marcosQuery.rows.map(m => ({
+                    nome: m.codigo,
+                    coords: [m.lng, m.lat]
+                }));
+                console.log(`[DXF Export] ${marcosData.length} marcos vinculados encontrados para prop ID ${id}.`);
+            } else {
+                console.warn(`[DXF Export] Aviso: Nenhum marco encontrado na proximidade da propriedade ID ${id}. Gerando apenas perímetro.`);
+            }
+
+        } catch (err) {
+            console.error('[DXF Export] Erro não-fatal ao buscar marcos:', err.message);
+            // Segue a vida com array vazio, não aborta.
         }
 
         // 3. Preparar dados para o Gerador DXF
         const dxfData = {
             perimetro: geojson.coordinates, // Array de coords [[lng,lat], ...]
-            marcos: vertices.map(v => ({
-                coords: [v.lng, v.lat],
-                nome: v.nome || `V${v.ordem}`
-            })),
+            marcos: marcosData, // Passa a lista (cheia ou vazia)
             textos: []
         };
 
