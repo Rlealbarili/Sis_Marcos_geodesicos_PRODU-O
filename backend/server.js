@@ -46,11 +46,20 @@ app.use((req, res, next) => {
 // ============================================
 // ROTAS MODULARES
 // ============================================
+
+// Middleware de Autenticação (Protocolo Bunker)
+const { authMiddleware } = require('./middleware/auth-middleware');
+
+// ROTAS PÚBLICAS (sem autenticação)
+const authRouter = require('./routes/auth');
+app.use('/api/auth', authRouter);
+
+// ROTAS PROTEGIDAS (requerem JWT válido)
 const uploadGeoRouter = require('./routes/upload-geo');
-app.use('/api/upload-geo', uploadGeoRouter);
+app.use('/api/upload-geo', authMiddleware, uploadGeoRouter);
 
 const dashboardRouter = require('./routes/dashboard');
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/dashboard', authMiddleware, dashboardRouter);
 
 // ============================================
 // ENDPOINT: Health Check
@@ -418,22 +427,22 @@ app.get('/api/marcos/:codigo', async (req, res) => {
 });
 
 // ============================================
-// ROTAS: CLIENTES E PROPRIEDADES
+// ROTAS: CLIENTES E PROPRIEDADES (PROTEGIDAS)
 // ============================================
 
 // Rotas de Clientes
 const clientesRoutes = require('./routes/clientes');
-app.use('/api/clientes', clientesRoutes);
+app.use('/api/clientes', authMiddleware, clientesRoutes);
 
 // Rotas de Marcos
 const marcosRoutes = require('./routes/marcos');
-app.use('/api/marcos', marcosRoutes);
+app.use('/api/marcos', authMiddleware, marcosRoutes);
 
 // ============================================
-// ENDPOINT: Propriedades em GeoJSON
+// ENDPOINT: Propriedades em GeoJSON - PROTEGIDA
 // ============================================
 
-app.get('/api/propriedades/geojson', async (req, res) => {
+app.get('/api/propriedades/geojson', authMiddleware, async (req, res) => {
     try {
         const result = await query(`
             SELECT
@@ -498,13 +507,13 @@ app.get('/api/propriedades/geojson', async (req, res) => {
     }
 });
 
-// Rotas de Propriedades (genéricas)
+// Rotas de Propriedades (genéricas) - PROTEGIDAS
 const propriedadesRoutes = require('./routes/propriedades');
-app.use('/api/propriedades', propriedadesRoutes);
+app.use('/api/propriedades', authMiddleware, propriedadesRoutes);
 
-// Rota de importação de CSV via Unstructured API
+// Rota de importação de CSV via Unstructured API - PROTEGIDA
 const uploadCsvRouter = require('./routes/upload-csv');
-app.use('/api/marcos/importar-csv', uploadCsvRouter);
+app.use('/api/marcos/importar-csv', authMiddleware, uploadCsvRouter);
 
 // ============================================
 // ENDPOINT: Histórico de Atividades
