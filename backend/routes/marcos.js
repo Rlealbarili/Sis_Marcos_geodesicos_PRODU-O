@@ -15,6 +15,21 @@ router.get('/', async (req, res) => {
     try {
         const { limite = 1000, offset = 0, tipo, municipio, estado, status, busca, levantados, validado } = req.query;
 
+        // MULTI-TENANT: Filtrar por cliente_id se não for admin
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna lista vazia
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                success: true,
+                data: [],
+                total: 0,
+                limite: parseInt(limite),
+                offset: parseInt(offset)
+            });
+        }
+
         // Se levantados=true, filtrar apenas marcos validados com geometria
         let baseWhere = '1=1';
         if (levantados === 'true') {
@@ -23,6 +38,16 @@ router.get('/', async (req, res) => {
         // Se validado foi passado explicitamente
         if (validado !== undefined) {
             baseWhere = validado === 'true' ? 'validado = true' : 'validado = false';
+        }
+
+        const params = [];
+        let paramIndex = 1;
+
+        // MULTI-TENANT: Adicionar filtro de cliente se não for admin
+        if (!isAdmin && clienteId) {
+            baseWhere += ` AND cliente_id = $${paramIndex}`;
+            params.push(clienteId);
+            paramIndex++;
         }
 
         let sqlQuery = `
@@ -40,10 +65,6 @@ router.get('/', async (req, res) => {
             FROM marcos_levantados
             WHERE ${baseWhere}
         `;
-
-
-        const params = [];
-        let paramIndex = 1;
 
         // Filtros
         if (tipo && tipo !== 'todos') {
@@ -81,10 +102,16 @@ router.get('/', async (req, res) => {
 
         const result = await query(sqlQuery, params);
 
-        // Contar total para paginação (COM FILTROS)
+        // Contar total para paginação (COM FILTROS) - MULTI-TENANT
         let countSql = `SELECT COUNT(*) as total FROM marcos_levantados WHERE ${baseWhere}`;
         const countParams = [];
         let countParamIndex = 1;
+
+        // MULTI-TENANT: Mesmo filtro de cliente no COUNT
+        if (!isAdmin && clienteId) {
+            countParams.push(clienteId);
+            countParamIndex++;
+        }
 
         if (tipo && tipo !== 'todos') {
             countSql += ` AND tipo = $${countParamIndex}`;
@@ -243,19 +270,22 @@ router.post('/', async (req, res) => {
             geometry = `SRID=31982;POINT(${coordenada_e} ${coordenada_n})`;
         }
 
+        // MULTI-TENANT: Forçar cliente_id do usuário logado (ignorar body)
+        const clienteIdInsert = req.user ? req.user.cliente_id : null;
+
         const result = await query(
             `INSERT INTO marcos_levantados
             (codigo, tipo, localizacao, coordenada_e, coordenada_n, altitude,
              geometry, data_levantamento, metodo, limites,
              precisao_e, precisao_n, precisao_h,
-             validado, fonte, observacoes, municipio, estado)
-            VALUES ($1, $2, $3, $4, $5, $6, ST_GeomFromEWKT($7), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+             validado, fonte, observacoes, municipio, estado, cliente_id)
+            VALUES ($1, $2, $3, $4, $5, $6, ST_GeomFromEWKT($7), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
             RETURNING *`,
             [
                 codigo, tipo, localizacao, coordenada_e, coordenada_n, altitude,
                 geometry, data_levantamento, metodo, limites,
                 precisao_e, precisao_n, precisao_h,
-                validado || false, fonte, observacoes, municipio, estado
+                validado || false, fonte, observacoes, municipio, estado, clienteIdInsert
             ]
         );
 

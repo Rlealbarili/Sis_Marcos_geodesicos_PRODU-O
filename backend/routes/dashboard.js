@@ -13,59 +13,95 @@ const { query } = require('../database/postgres-connection');
  */
 router.get('/overview', async (req, res) => {
     try {
-        // 1. KPIs Gerais (4 Cards principais)
+        // MULTI-TENANT: Determinar filtro de cliente
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna KPIs zerados
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                success: true,
+                kpis: {
+                    total_hectares: '0.00',
+                    total_marcos: 0,
+                    marcos_levantados: 0,
+                    pct_levantados: 0,
+                    total_propriedades: 0,
+                    total_clientes: 0,
+                    total_km_perimetro: '0.00',
+                    eficiencia_marcos_prop: 0
+                },
+                distribuicao_marcos: [],
+                distribuicao_propriedades: [],
+                timeline: [],
+                top_clientes: []
+            });
+        }
+
+        // Construir cláusula WHERE para filtro de cliente
+        const whereMarcos = (!isAdmin && clienteId) ? `WHERE cliente_id = ${clienteId}` : '';
+        const andMarcos = (!isAdmin && clienteId) ? `AND cliente_id = ${clienteId}` : '';
+        const whereProp = (!isAdmin && clienteId) ? `WHERE cliente_id = ${clienteId}` : '';
+        const andProp = (!isAdmin && clienteId) ? `AND p.cliente_id = ${clienteId}` : '';
+
+        // 1. KPIs Gerais (4 Cards principais) - MULTI-TENANT
         const kpisQuery = await query(`
             SELECT 
-                (SELECT COUNT(*) FROM marcos_levantados) as total_marcos,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = true) as marcos_levantados,
-                (SELECT COUNT(*) FROM propriedades) as total_propriedades,
+                (SELECT COUNT(*) FROM marcos_levantados ${whereMarcos}) as total_marcos,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = true ${andMarcos}) as marcos_levantados,
+                (SELECT COUNT(*) FROM propriedades ${whereProp}) as total_propriedades,
                 (SELECT COUNT(*) FROM clientes) as total_clientes,
-                (SELECT COALESCE(SUM(area_m2), 0) / 10000 FROM propriedades) as total_hectares,
-                (SELECT COALESCE(SUM(perimetro_m), 0) / 1000 FROM propriedades) as total_km_perimetro
+                (SELECT COALESCE(SUM(area_m2), 0) / 10000 FROM propriedades ${whereProp}) as total_hectares,
+                (SELECT COALESCE(SUM(perimetro_m), 0) / 1000 FROM propriedades ${whereProp}) as total_km_perimetro
         `);
 
-        // 2. Distribuição por Tipo de Marco (Gráfico de Rosca)
+        // 2. Distribuição por Tipo de Marco (Gráfico de Rosca) - MULTI-TENANT
         const tiposQuery = await query(`
             SELECT 
                 COALESCE(tipo, 'OUTROS') as tipo, 
                 COUNT(*) as qtd 
             FROM marcos_levantados 
+            ${whereMarcos}
             GROUP BY tipo
             ORDER BY qtd DESC
         `);
 
-        // 3. Produção Mensal (Gráfico de Barras - Últimos 6 meses)
+        // 3. Produção Mensal (Gráfico de Barras - Últimos 6 meses) - MULTI-TENANT
         const timelineQuery = await query(`
             SELECT 
                 TO_CHAR(created_at, 'Mon/YY') as mes,
                 DATE_TRUNC('month', created_at) as mes_ordem,
                 COUNT(*) as qtd
             FROM marcos_levantados
-            WHERE created_at >= NOW() - INTERVAL '6 months'
+            WHERE created_at >= NOW() - INTERVAL '6 months' ${andMarcos}
             GROUP BY TO_CHAR(created_at, 'Mon/YY'), DATE_TRUNC('month', created_at)
             ORDER BY mes_ordem ASC
         `);
 
-        // 4. Top 5 Clientes por número de propriedades
-        const topClientesQuery = await query(`
-            SELECT 
-                c.nome,
-                COUNT(p.id) as total_propriedades,
-                COALESCE(SUM(p.area_m2), 0) / 10000 as total_hectares
-            FROM clientes c
-            LEFT JOIN propriedades p ON p.cliente_id = c.id
-            GROUP BY c.id, c.nome
-            ORDER BY total_propriedades DESC
-            LIMIT 5
-        `);
+        // 4. Top 5 Clientes por número de propriedades (apenas para admin)
+        let topClientesQuery = { rows: [] };
+        if (isAdmin) {
+            topClientesQuery = await query(`
+                SELECT 
+                    c.nome,
+                    COUNT(p.id) as total_propriedades,
+                    COALESCE(SUM(p.area_m2), 0) / 10000 as total_hectares
+                FROM clientes c
+                LEFT JOIN propriedades p ON p.cliente_id = c.id
+                GROUP BY c.id, c.nome
+                ORDER BY total_propriedades DESC
+                LIMIT 5
+            `);
+        }
 
-        // 5. Propriedades por Tipo (Rural vs Urbana)
+        // 5. Propriedades por Tipo (Rural vs Urbana) - MULTI-TENANT
         const propTiposQuery = await query(`
             SELECT 
                 COALESCE(tipo, 'RURAL') as tipo,
                 COUNT(*) as qtd,
                 COALESCE(SUM(area_m2), 0) / 10000 as hectares
             FROM propriedades
+            ${whereProp}
             GROUP BY tipo
         `);
 

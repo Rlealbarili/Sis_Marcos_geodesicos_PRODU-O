@@ -75,27 +75,51 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ============================================
-// ENDPOINT: Estatísticas (Unificado)
+// ENDPOINT: Estatísticas (Unificado) - PROTEGIDA + MULTI-TENANT
 // ============================================
-app.get('/api/estatisticas', async (req, res) => {
+app.get('/api/estatisticas', authMiddleware, async (req, res) => {
     try {
+        // MULTI-TENANT: Verificar permissões
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna zeros
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                total_marcos: 0,
+                marcos_levantados: 0,
+                marcos_pendentes: 0,
+                total_propriedades: 0,
+                total_clientes: 0,
+                por_tipo: { V: 0, M: 0, P: 0 },
+                por_tipo_validados: { V: 0, M: 0, P: 0 },
+                percentual_levantados: 0
+            });
+        }
+
+        // Construir cláusulas WHERE para filtro
+        const whereMarcos = (!isAdmin && clienteId) ? `WHERE cliente_id = ${clienteId}` : '';
+        const andMarcos = (!isAdmin && clienteId) ? `AND cliente_id = ${clienteId}` : '';
+        const whereProp = (!isAdmin && clienteId) ? `WHERE cliente_id = ${clienteId} AND ativo = true` : 'WHERE ativo = true';
+        const whereCliente = (!isAdmin && clienteId) ? `WHERE id = ${clienteId} AND ativo = true` : 'WHERE ativo = true';
+
         // Query otimizada com Subselects para trazer tudo de uma vez
         const result = await query(`
             SELECT
-                (SELECT COUNT(*) FROM marcos_levantados) as total_marcos,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = true AND geometry IS NOT NULL) as marcos_levantados,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE validado = false OR geometry IS NULL) as marcos_pendentes,
-                (SELECT COUNT(*) FROM propriedades WHERE ativo = true) as total_propriedades,
-                (SELECT COUNT(*) FROM clientes WHERE ativo = true) as total_clientes,
+                (SELECT COUNT(*) FROM marcos_levantados ${whereMarcos}) as total_marcos,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE (validado = true AND geometry IS NOT NULL) ${andMarcos}) as marcos_levantados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE (validado = false OR geometry IS NULL) ${andMarcos}) as marcos_pendentes,
+                (SELECT COUNT(*) FROM propriedades ${whereProp}) as total_propriedades,
+                (SELECT COUNT(*) FROM clientes ${whereCliente}) as total_clientes,
 
                 -- Contagens específicas de Marcos
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V') as tipo_v,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M') as tipo_m,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P') as tipo_p,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' ${andMarcos}) as tipo_v,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M' ${andMarcos}) as tipo_m,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P' ${andMarcos}) as tipo_p,
 
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' AND validado = true) as tipo_v_validados,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M' AND validado = true) as tipo_m_validados,
-                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P' AND validado = true) as tipo_p_validados
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'V' AND validado = true ${andMarcos}) as tipo_v_validados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'M' AND validado = true ${andMarcos}) as tipo_m_validados,
+                (SELECT COUNT(*) FROM marcos_levantados WHERE tipo = 'P' AND validado = true ${andMarcos}) as tipo_p_validados
         `);
 
         const stats = result.rows[0];
@@ -109,8 +133,8 @@ app.get('/api/estatisticas', async (req, res) => {
             total_marcos: total,
             marcos_levantados: levantados,
             marcos_pendentes: parseInt(stats.marcos_pendentes),
-            total_propriedades: parseInt(stats.total_propriedades), // Novo campo
-            total_clientes: parseInt(stats.total_clientes),         // Novo campo
+            total_propriedades: parseInt(stats.total_propriedades),
+            total_clientes: parseInt(stats.total_clientes),
             por_tipo: {
                 V: parseInt(stats.tipo_v),
                 M: parseInt(stats.tipo_m),
@@ -439,11 +463,32 @@ const marcosRoutes = require('./routes/marcos');
 app.use('/api/marcos', authMiddleware, marcosRoutes);
 
 // ============================================
-// ENDPOINT: Propriedades em GeoJSON - PROTEGIDA
+// ENDPOINT: Propriedades em GeoJSON - PROTEGIDA + MULTI-TENANT
 // ============================================
 
 app.get('/api/propriedades/geojson', authMiddleware, async (req, res) => {
     try {
+        // MULTI-TENANT: Verificar permissões
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna GeoJSON vazio
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                type: 'FeatureCollection',
+                features: []
+            });
+        }
+
+        // Construir cláusula WHERE
+        let whereClause = 'WHERE p.geometry IS NOT NULL AND p.ativo = true';
+        const params = [];
+
+        if (!isAdmin && clienteId) {
+            whereClause += ' AND p.cliente_id = $1';
+            params.push(clienteId);
+        }
+
         const result = await query(`
             SELECT
                 p.id,
@@ -462,10 +507,9 @@ app.get('/api/propriedades/geojson', authMiddleware, async (req, res) => {
                 ST_AsGeoJSON(ST_Transform(p.geometry, 4326)) as geometry
             FROM propriedades p
             LEFT JOIN clientes c ON p.cliente_id = c.id
-            WHERE p.geometry IS NOT NULL
-            AND p.ativo = true
+            ${whereClause}
             ORDER BY p.created_at DESC
-        `);
+        `, params);
 
         const geojson = {
             type: 'FeatureCollection',
@@ -516,16 +560,39 @@ const uploadCsvRouter = require('./routes/upload-csv');
 app.use('/api/marcos/importar-csv', authMiddleware, uploadCsvRouter);
 
 // ============================================
-// ENDPOINT: Histórico de Atividades
+// ENDPOINT: Histórico de Atividades - PROTEGIDA + MULTI-TENANT
 // ============================================
 
-app.get('/api/historico', async (req, res) => {
+app.get('/api/historico', authMiddleware, async (req, res) => {
     try {
         const { pagina = 0, limite = 50, usuario, acao, entidade } = req.query;
+
+        // MULTI-TENANT: Verificar permissões
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna lista vazia
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                sucesso: true,
+                dados: [],
+                total: 0,
+                pagina: parseInt(pagina),
+                limite: parseInt(limite),
+                total_paginas: 0
+            });
+        }
 
         let whereClause = "1=1";
         let params = [];
         let paramIndex = 1;
+
+        // MULTI-TENANT: Filtrar por cliente_id se não for admin
+        if (!isAdmin && clienteId) {
+            whereClause += ` AND cliente_id = $${paramIndex}`;
+            params.push(clienteId);
+            paramIndex++;
+        }
 
         if (usuario) {
             params.push(usuario);

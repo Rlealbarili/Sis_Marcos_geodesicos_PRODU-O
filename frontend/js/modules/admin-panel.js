@@ -345,6 +345,345 @@ const AdminPanel = {
         } catch (error) {
             alert('Erro de conexão');
         }
+    },
+
+    // ============================================
+    // PROVISIONAMENTO DE TENANT (Protocolo Petrovich)
+    // ============================================
+
+    /**
+     * Abre modal para provisionar novo tenant (Empresa + Usuário)
+     */
+    openProvisionTenantModal() {
+        const existingModal = document.getElementById('modal-provision-tenant');
+        if (existingModal) existingModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-provision-tenant';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-backdrop" onclick="AdminPanel.closeProvisionTenantModal()"></div>
+            <div class="modal-container" style="max-width: 550px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">
+                        🏢 Novo Inquilino (Empresa + Admin)
+                    </h2>
+                    <button class="btn-icon close-modal" onclick="AdminPanel.closeProvisionTenantModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="form-provision-tenant" onsubmit="AdminPanel.provisionTenant(event)">
+                    <div class="modal-body">
+                        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+                            Este fluxo cria a EMPRESA e o USUÁRIO ADMIN simultaneamente, garantindo vínculo imediato.
+                        </p>
+
+                        <h4 style="margin-bottom: 10px; color: var(--accent);">📋 Dados da Empresa</h4>
+                        <div class="form-group">
+                            <label for="tenant-empresa-nome">Nome da Empresa *</label>
+                            <input type="text" id="tenant-empresa-nome" required placeholder="Ex: Construtora João Ltda">
+                        </div>
+                        <div class="form-group">
+                            <label for="tenant-empresa-cnpj">CPF/CNPJ (opcional)</label>
+                            <input type="text" id="tenant-empresa-cnpj" placeholder="00.000.000/0000-00">
+                        </div>
+                        <div class="form-group">
+                            <label for="tenant-empresa-email">Email da Empresa (opcional)</label>
+                            <input type="email" id="tenant-empresa-email" placeholder="contato@empresa.com.br">
+                        </div>
+
+                        <hr style="margin: 20px 0; border-color: var(--border-color);">
+
+                        <h4 style="margin-bottom: 10px; color: var(--accent);">👤 Dados do Usuário Admin</h4>
+                        <div class="form-group">
+                            <label for="tenant-usuario-nome">Nome do Usuário *</label>
+                            <input type="text" id="tenant-usuario-nome" required placeholder="Ex: João Silva">
+                        </div>
+                        <div class="form-group">
+                            <label for="tenant-usuario-email">Email do Usuário *</label>
+                            <input type="email" id="tenant-usuario-email" required placeholder="joao@empresa.com.br">
+                        </div>
+
+                        <div id="provision-tenant-error" class="form-error" style="color: #EF4444;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="AdminPanel.closeProvisionTenantModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btn-provision-tenant" class="btn btn-primary">
+                            🚀 Provisionar Tenant
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        if (window.lucide) lucide.createIcons();
+    },
+
+    /**
+     * Fecha modal de provisionamento
+     */
+    closeProvisionTenantModal() {
+        const modal = document.getElementById('modal-provision-tenant');
+        if (modal) modal.remove();
+    },
+
+    /**
+     * Executa provisionamento de tenant
+     */
+    async provisionTenant(event) {
+        event.preventDefault();
+
+        const errorDiv = document.getElementById('provision-tenant-error');
+        const btn = document.getElementById('btn-provision-tenant');
+
+        const nome_empresa = document.getElementById('tenant-empresa-nome').value.trim();
+        const cpf_cnpj = document.getElementById('tenant-empresa-cnpj').value.trim();
+        const email_empresa = document.getElementById('tenant-empresa-email').value.trim();
+        const nome_usuario = document.getElementById('tenant-usuario-nome').value.trim();
+        const email_usuario = document.getElementById('tenant-usuario-email').value.trim();
+
+        if (!nome_empresa || !nome_usuario || !email_usuario) {
+            errorDiv.textContent = 'Preencha os campos obrigatórios';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Provisionando...';
+        errorDiv.textContent = '';
+
+        try {
+            const response = await fetch(`${window.API_URL}/api/auth/provision-tenant`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome_empresa, cpf_cnpj, email_empresa, nome_usuario, email_usuario })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.closeProvisionTenantModal();
+                this.showProvisionSuccessModal(data);
+                await this.loadUsers();
+            } else {
+                errorDiv.textContent = data.error || 'Erro ao provisionar tenant';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Erro de conexão';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🚀 Provisionar Tenant';
+        }
+    },
+
+    /**
+     * Mostra modal de sucesso do provisionamento
+     */
+    showProvisionSuccessModal(data) {
+        const existingModal = document.getElementById('modal-provision-success');
+        if (existingModal) existingModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-provision-success';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-backdrop" onclick="AdminPanel.closeProvisionSuccessModal()"></div>
+            <div class="modal-container" style="max-width: 550px;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #10B981, #059669);">
+                    <h2 class="modal-title" style="color: white;">
+                        ✅ Tenant Provisionado!
+                    </h2>
+                    <button class="btn-icon close-modal" onclick="AdminPanel.closeProvisionSuccessModal()" style="color: white;">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p style="margin: 5px 0;"><strong>🏢 Empresa:</strong> ${data.empresa.nome} (ID: ${data.empresa.id})</p>
+                        <p style="margin: 5px 0;"><strong>👤 Usuário:</strong> ${data.usuario.nome}</p>
+                        <p style="margin: 5px 0;"><strong>📧 Email:</strong> ${data.usuario.email}</p>
+                    </div>
+                    
+                    <div class="temp-password-box" style="background: #FEF3C7; padding: 15px; border-radius: 8px; border: 2px solid #F59E0B;">
+                        <label style="color: #92400E; font-weight: bold;">🔑 Senha Temporária:</label>
+                        <div class="password-display" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                            <code style="background: white; padding: 10px 15px; border-radius: 4px; font-size: 1.2rem; font-weight: bold;">${data.tempPassword}</code>
+                            <button class="btn btn-small btn-secondary" onclick="AdminPanel.copyPassword('${data.tempPassword}')">
+                                📋 Copiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-warning" style="margin-top: 15px; padding: 10px; background: #FEE2E2; border-radius: 8px;">
+                        <strong>⚠️ IMPORTANTE:</strong> Copie e envie esta senha ao cliente. 
+                        Esta informação <strong>NÃO será exibida novamente</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="AdminPanel.closeProvisionSuccessModal()">
+                        ✅ Entendi, senha copiada!
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        if (window.lucide) lucide.createIcons();
+    },
+
+    /**
+     * Fecha modal de sucesso
+     */
+    closeProvisionSuccessModal() {
+        const modal = document.getElementById('modal-provision-success');
+        if (modal) modal.remove();
+    },
+
+    /**
+     * Carrega lista de clientes para select
+     */
+    async loadClientesList() {
+        try {
+            const response = await fetch(`${window.API_URL}/api/auth/clientes-list`);
+            const data = await response.json();
+
+            if (response.ok) {
+                return data.data || [];
+            }
+            return [];
+        } catch (error) {
+            console.error('[AdminPanel] Erro ao carregar clientes:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Abre modal para adicionar usuário a empresa existente
+     */
+    async openAddUserToClientModal() {
+        const clientes = await this.loadClientesList();
+
+        if (clientes.length === 0) {
+            alert('Nenhuma empresa cadastrada. Use "Novo Inquilino" para criar uma empresa primeiro.');
+            return;
+        }
+
+        const existingModal = document.getElementById('modal-add-user-client');
+        if (existingModal) existingModal.remove();
+
+        const clientesOptions = clientes.map(c =>
+            `<option value="${c.id}">${c.nome}${c.cpf_cnpj ? ` (${c.cpf_cnpj})` : ''}</option>`
+        ).join('');
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-add-user-client';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-backdrop" onclick="AdminPanel.closeAddUserToClientModal()"></div>
+            <div class="modal-container" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">👤 Adicionar Usuário à Empresa</h2>
+                    <button class="btn-icon close-modal" onclick="AdminPanel.closeAddUserToClientModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="form-add-user-client" onsubmit="AdminPanel.addUserToClient(event)">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="add-user-cliente">Empresa *</label>
+                            <select id="add-user-cliente" required>
+                                <option value="">-- Selecione a Empresa --</option>
+                                ${clientesOptions}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="add-user-nome">Nome do Usuário *</label>
+                            <input type="text" id="add-user-nome" required placeholder="Ex: Carlos Engenheiro">
+                        </div>
+                        <div class="form-group">
+                            <label for="add-user-email">Email *</label>
+                            <input type="email" id="add-user-email" required placeholder="carlos@empresa.com.br">
+                        </div>
+                        <div class="form-group">
+                            <label for="add-user-cargo">Cargo</label>
+                            <select id="add-user-cargo">
+                                <option value="operador">Operador</option>
+                                <option value="visualizador">Visualizador</option>
+                            </select>
+                        </div>
+                        <div id="add-user-client-error" class="form-error" style="color: #EF4444;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="AdminPanel.closeAddUserToClientModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btn-add-user-client" class="btn btn-primary">
+                            Adicionar Usuário
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        if (window.lucide) lucide.createIcons();
+    },
+
+    /**
+     * Fecha modal de adicionar usuário
+     */
+    closeAddUserToClientModal() {
+        const modal = document.getElementById('modal-add-user-client');
+        if (modal) modal.remove();
+    },
+
+    /**
+     * Adiciona usuário a empresa existente
+     */
+    async addUserToClient(event) {
+        event.preventDefault();
+
+        const errorDiv = document.getElementById('add-user-client-error');
+        const btn = document.getElementById('btn-add-user-client');
+
+        const cliente_id = document.getElementById('add-user-cliente').value;
+        const nome = document.getElementById('add-user-nome').value.trim();
+        const email = document.getElementById('add-user-email').value.trim();
+        const cargo = document.getElementById('add-user-cargo').value;
+
+        if (!cliente_id || !nome || !email) {
+            errorDiv.textContent = 'Preencha todos os campos obrigatórios';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Adicionando...';
+        errorDiv.textContent = '';
+
+        try {
+            const response = await fetch(`${window.API_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, email, cargo, cliente_id: parseInt(cliente_id) })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.closeAddUserToClientModal();
+                this.showTempPasswordModal(data.usuario, data.tempPassword);
+                await this.loadUsers();
+            } else {
+                errorDiv.textContent = data.error || 'Erro ao adicionar usuário';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Erro de conexão';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Adicionar Usuário';
+        }
     }
 };
 

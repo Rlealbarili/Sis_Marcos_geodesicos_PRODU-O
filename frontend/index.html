@@ -598,27 +598,30 @@
 
                 <!-- Panel Admin: Gestão de Usuários -->
                 <div id="panel-admin" class="content-panel">
-                    <div style="padding: 30px; max-width: 1200px; margin: 0 auto;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                            <div>
-                                <h2 style="margin: 0 0 5px 0; display: flex; align-items: center; gap: 10px;">
-                                    <i data-lucide="shield"
-                                        style="width:28px;height:28px;color:var(--cogep-green);"></i>
+                    <div class="admin-panel-container">
+                        <div class="admin-panel-header">
+                            <div class="admin-panel-title">
+                                <h2>
+                                    <i data-lucide="shield"></i>
                                     Gestão de Usuários
                                 </h2>
-                                <p style="color: var(--text-secondary); margin: 0;">Administre contas, cargos e
-                                    permissões</p>
+                                <p class="text-secondary">Administre empresas, contas e permissões</p>
                             </div>
-                            <button class="btn btn-primary" onclick="AdminPanel.openNewUserModal()">
-                                <i data-lucide="user-plus" style="width:18px;height:18px;"></i>
-                                Novo Usuário
-                            </button>
+                            <div class="admin-panel-actions">
+                                <button class="btn btn-primary btn-provision"
+                                    onclick="AdminPanel.openProvisionTenantModal()">
+                                    <i data-lucide="building-2"></i>
+                                    Novo Inquilino
+                                </button>
+                                <button class="btn btn-secondary" onclick="AdminPanel.openAddUserToClientModal()">
+                                    <i data-lucide="user-plus"></i>
+                                    Adicionar Usuário
+                                </button>
+                            </div>
                         </div>
 
-                        <div id="admin-users-grid"
-                            style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border-primary);">
-                            <p style="color: var(--text-secondary);">Carregando usuários...</p>
+                        <div id="admin-users-grid" class="admin-users-container">
+                            <p class="text-secondary">Carregando usuários...</p>
                         </div>
                     </div>
                 </div>
@@ -626,37 +629,112 @@
         </main>
     </div>
 
-    <!-- Estilos do Admin Panel -->
+    <!-- Estilos do Admin Panel - Design System Premium -->
     <style>
+        /* ========================================
+           ADMIN PANEL - Premium Styles
+           ======================================== */
+
+        /* Layout Classes */
+        .admin-panel-container {
+            padding: var(--space-8, 32px);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6, 24px);
+            flex-wrap: wrap;
+            gap: var(--space-4, 16px);
+        }
+
+        .admin-panel-title h2 {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3, 12px);
+            margin: 0 0 var(--space-1, 4px) 0;
+            font-size: var(--text-2xl, 23px);
+            font-weight: var(--weight-heavy, 800);
+            color: var(--text-primary);
+        }
+
+        .admin-panel-title h2 i {
+            width: 28px;
+            height: 28px;
+            color: var(--cogep-green);
+        }
+
+        .admin-panel-title p {
+            margin: 0;
+            font-size: var(--text-sm, 13px);
+        }
+
+        .admin-panel-actions {
+            display: flex;
+            gap: var(--space-3, 12px);
+            flex-wrap: wrap;
+        }
+
+        .btn-provision {
+            background: linear-gradient(135deg, var(--cogep-green), #059669) !important;
+        }
+
+        .btn-provision:hover {
+            background: linear-gradient(135deg, var(--cogep-green-hover), #10B981) !important;
+        }
+
+        .admin-users-container {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg, 16px);
+            padding: var(--space-5, 20px);
+            border: 1px solid var(--border-primary);
+        }
+
+        /* Data Table */
         .admin-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: var(--text-sm, 13px);
         }
 
         .admin-table th,
         .admin-table td {
-            padding: 12px 15px;
+            padding: var(--space-3, 12px) var(--space-4, 16px);
             text-align: left;
             border-bottom: 1px solid var(--border-primary);
         }
 
         .admin-table th {
-            background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
-            font-weight: 600;
-            font-size: 0.85rem;
+            background: var(--bg-tertiary);
+            font-weight: var(--weight-bold, 700);
+            font-size: var(--text-xs, 11px);
             color: var(--text-secondary);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .admin-table tr:hover {
-            background: var(--bg-hover, rgba(0, 0, 0, 0.02));
+        .admin-table tbody tr {
+            transition: background-color var(--transition-fast, 0.15s);
         }
 
+        .admin-table tbody tr:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Status Badges */
         .status-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1, 4px);
+            padding: var(--space-1, 4px) var(--space-3, 12px);
+            border-radius: var(--radius-full, 9999px);
+            font-size: var(--text-xs, 11px);
+            font-weight: var(--weight-bold, 700);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .status-active {
@@ -669,100 +747,210 @@
             color: #EF4444;
         }
 
+        /* Cargo Badges */
         .cargo-badge {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            padding: var(--space-1, 4px) var(--space-3, 12px);
+            border-radius: var(--radius-md, 8px);
+            font-size: var(--text-xs, 11px);
+            font-weight: var(--weight-medium, 500);
         }
 
         .cargo-admin {
-            background: rgba(139, 92, 246, 0.15);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15));
             color: #8B5CF6;
+            border: 1px solid rgba(139, 92, 246, 0.3);
         }
 
         .cargo-operador {
-            background: rgba(59, 130, 246, 0.15);
+            background: rgba(59, 130, 246, 0.12);
             color: #3B82F6;
+            border: 1px solid rgba(59, 130, 246, 0.25);
         }
 
         .cargo-visualizador {
-            background: rgba(107, 114, 128, 0.15);
+            background: rgba(107, 114, 128, 0.12);
             color: #6B7280;
+            border: 1px solid rgba(107, 114, 128, 0.25);
         }
 
         .badge-warning {
             cursor: help;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
         }
 
         .actions-cell {
             display: flex;
-            gap: 8px;
+            gap: var(--space-2, 8px);
         }
 
+        /* Small Buttons */
         .btn-small {
-            padding: 6px 10px !important;
-            font-size: 0.85rem !important;
+            height: 28px !important;
+            padding: 0 var(--space-2, 8px) !important;
+            font-size: var(--text-xs, 11px) !important;
         }
 
         .btn-danger {
-            background: rgba(239, 68, 68, 0.15);
+            background: rgba(239, 68, 68, 0.12);
             color: #EF4444;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.25);
         }
 
         .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.25);
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
         }
 
         .btn-success {
-            background: rgba(16, 185, 129, 0.15);
+            background: rgba(16, 185, 129, 0.12);
             color: #10B981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.25);
         }
 
         .btn-success:hover {
-            background: rgba(16, 185, 129, 0.25);
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.4);
         }
 
+        /* Password Box */
         .temp-password-box {
-            background: var(--bg-tertiary, #f5f5f5);
-            border: 2px dashed var(--border-primary);
-            border-radius: 10px;
-            padding: 15px;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px dashed var(--cogep-green);
+            border-radius: var(--radius-lg, 16px);
+            padding: var(--space-5, 20px);
             text-align: center;
         }
 
         .temp-password-box label {
             display: block;
-            font-size: 0.85rem;
+            font-size: var(--text-sm, 13px);
+            font-weight: var(--weight-medium, 500);
             color: var(--text-secondary);
-            margin-bottom: 8px;
+            margin-bottom: var(--space-3, 12px);
         }
 
         .password-display {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
+            gap: var(--space-4, 16px);
         }
 
         .password-display code {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--cogep-green, #84c225);
-            background: rgba(132, 194, 37, 0.1);
-            padding: 8px 16px;
-            border-radius: 8px;
+            font-size: var(--text-2xl, 23px);
+            font-weight: var(--weight-heavy, 800);
+            color: var(--cogep-green);
+            background: rgba(0, 168, 89, 0.1);
+            padding: var(--space-3, 12px) var(--space-5, 20px);
+            border-radius: var(--radius-md, 8px);
+            border: 1px solid rgba(0, 168, 89, 0.2);
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
         }
 
+        /* Alert Warning */
         .alert-warning {
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 8px;
-            padding: 12px 15px;
-            color: #B45309;
-            font-size: 0.9rem;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: var(--radius-md, 8px);
+            padding: var(--space-4, 16px);
+            color: #92400E;
+            font-size: var(--text-sm, 13px);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2, 8px);
+        }
+
+        [data-theme="dark"] .alert-warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: #FBBF24;
+        }
+
+        /* Form Group in Modals */
+        .modal .form-group {
+            margin-bottom: var(--space-4, 16px);
+        }
+
+        .modal .form-group label {
+            display: block;
+            font-size: var(--text-sm, 13px);
+            font-weight: var(--weight-medium, 500);
+            color: var(--text-primary);
+            margin-bottom: var(--space-2, 8px);
+        }
+
+        .modal .form-group input,
+        .modal .form-group select {
+            width: 100%;
+            height: 44px;
+            padding: 0 var(--space-4, 16px);
+            font-size: var(--text-base, 15px);
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md, 8px);
+            transition: all var(--transition-fast, 0.15s);
+            outline: none;
+        }
+
+        .modal .form-group input:focus,
+        .modal .form-group select:focus {
+            border-color: var(--cogep-green);
+            box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.1);
+        }
+
+        .modal .form-group input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        /* Section Dividers */
+        .modal hr {
+            border: none;
+            border-top: 1px solid var(--border-primary);
+            margin: var(--space-5, 20px) 0;
+        }
+
+        /* Section Headers */
+        .modal h4 {
+            font-size: var(--text-sm, 13px);
+            font-weight: var(--weight-bold, 700);
+            color: var(--cogep-green);
+            margin-bottom: var(--space-3, 12px);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Form Error */
+        .form-error {
+            font-size: var(--text-sm, 13px);
+            color: #EF4444;
+            margin-top: var(--space-2, 8px);
+        }
+
+        /* Success Modal Header */
+        .modal-header.success {
+            background: linear-gradient(135deg, var(--cogep-green), #059669);
+        }
+
+        .modal-header.success .modal-title {
+            color: white;
+        }
+
+        .modal-header.success .btn-icon {
+            color: white;
         }
     </style>
 

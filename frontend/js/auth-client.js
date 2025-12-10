@@ -15,10 +15,16 @@ const AUTH_TOKEN_KEY = 'cogep_auth_token';
 
 window.fetch = async function (url, options = {}) {
     // 1. Detectar se é uma chamada para a API interna (e não externa como OSM/ViaCEP)
-    const isApiCall = url.toString().includes('/api/');
+    const urlString = url.toString();
+    const isApiCall = urlString.includes('/api/');
 
     // 2. Detectar se é uma rota pública que não precisa de token
-    const isPublicEndpoint = url.toString().includes('/api/auth') || url.toString().includes('/api/health');
+    // APENAS login, setup-admin e health são públicas
+    // Outras rotas /api/auth/* (register, users, etc.) SÃO PROTEGIDAS
+    const isPublicEndpoint =
+        urlString.includes('/api/auth/login') ||
+        urlString.includes('/api/auth/setup-admin') ||
+        urlString.includes('/api/health');
 
     if (isApiCall && !isPublicEndpoint) {
         const token = localStorage.getItem(AUTH_TOKEN_KEY);

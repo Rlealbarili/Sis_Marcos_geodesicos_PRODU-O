@@ -9,7 +9,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { query } = require('../database/postgres-connection');
+const { query, pool } = require('../database/postgres-connection');
 const { authMiddleware, requireRole, JWT_SECRET } = require('../middleware/auth-middleware');
 
 // Configurações
@@ -108,12 +108,14 @@ router.post('/login', async (req, res) => {
             [usuario.id]
         );
 
-        // Gerar token JWT
+        // Gerar token JWT (inclui cliente_id para Multi-Tenant)
         const token = jwt.sign(
             {
                 id: usuario.id,
                 email: usuario.email,
                 cargo: usuario.cargo,
+                nome: usuario.nome,
+                cliente_id: usuario.cliente_id, // CAMPO CRÍTICO MULTI-TENANT
                 deve_trocar_senha: usuario.deve_trocar_senha
             },
             JWT_SECRET,
@@ -128,6 +130,7 @@ router.post('/login', async (req, res) => {
                 nome: usuario.nome,
                 email: usuario.email,
                 cargo: usuario.cargo,
+                cliente_id: usuario.cliente_id, // MULTI-TENANT
                 deve_trocar_senha: usuario.deve_trocar_senha
             }
         });
@@ -313,11 +316,11 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 // ============================================
 // POST /api/auth/register (Admin only)
-// Criar novo usuário com senha temporária
+// Criar novo usuário com senha temporária - MULTI-TENANT
 // ============================================
 router.post('/register', authMiddleware, requireRole(['admin']), async (req, res) => {
     try {
-        const { nome, email, cargo = 'operador' } = req.body;
+        const { nome, email, cargo = 'operador', cliente_id } = req.body;
 
         if (!nome || !email) {
             return res.status(400).json({
@@ -336,6 +339,17 @@ router.post('/register', authMiddleware, requireRole(['admin']), async (req, res
             });
         }
 
+        // BLINDAGEM MULTI-TENANT (Protocolo Petrovich):
+        // Usuários não-admin DEVEM ter cliente_id vinculado
+        // Para criar usuários, use /provision-tenant (cria empresa + usuário juntos)
+        if (cargo !== 'admin' && !cliente_id) {
+            return res.status(400).json({
+                error: 'Tentativa de criar usuário órfão. Informe o ID do cliente ou use /provision-tenant.',
+                code: 'ORPHAN_USER_BLOCKED',
+                hint: 'Use POST /api/auth/provision-tenant para criar empresa + usuário juntos'
+            });
+        }
+
         // Gerar senha temporária (Mudar + 4 dígitos)
         const tempPassword = 'Mudar' + Math.floor(1000 + Math.random() * 9000);
 
@@ -344,10 +358,10 @@ router.post('/register', authMiddleware, requireRole(['admin']), async (req, res
 
         // Criar usuário (deve_trocar_senha = true para novos)
         const result = await query(
-            `INSERT INTO usuarios (nome, email, senha_hash, cargo, deve_trocar_senha) 
-             VALUES ($1, $2, $3, $4, true) 
-             RETURNING id, nome, email, cargo, created_at`,
-            [nome.trim(), email.toLowerCase().trim(), senhaHash, cargo]
+            `INSERT INTO usuarios (nome, email, senha_hash, cargo, cliente_id, deve_trocar_senha) 
+             VALUES ($1, $2, $3, $4, $5, true) 
+             RETURNING id, nome, email, cargo, cliente_id, created_at`,
+            [nome.trim(), email.toLowerCase().trim(), senhaHash, cargo, cliente_id || null]
         );
 
         // RETORNA A SENHA TEMPORÁRIA PARA O ADMIN COPIAR
@@ -483,6 +497,119 @@ router.post('/admin/reset-password', authMiddleware, requireRole(['admin']), asy
 
     } catch (error) {
         console.error('Erro em /api/auth/admin/reset-password:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// ============================================
+// POST /api/auth/provision-tenant (Admin only)
+// PROVISIONAMENTO ATÔMICO: Cria Cliente + Usuário em transação única
+// Protocolo Petrovich - Evita usuários órfãos
+// ============================================
+router.post('/provision-tenant', authMiddleware, requireRole(['admin']), async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const {
+            nome_empresa,
+            cpf_cnpj,
+            email_empresa,
+            nome_usuario,
+            email_usuario
+        } = req.body;
+
+        // Validações
+        if (!nome_empresa || !nome_usuario || !email_usuario) {
+            return res.status(400).json({
+                error: 'Campos obrigatórios: nome_empresa, nome_usuario, email_usuario',
+                code: 'MISSING_FIELDS'
+            });
+        }
+
+        // Gerar senha temporária
+        const tempPassword = 'Mudar' + Math.floor(1000 + Math.random() * 9000);
+        const senhaHash = await bcrypt.hash(tempPassword, 10);
+
+        // TRANSAÇÃO ATÔMICA - BEGIN
+        await client.query('BEGIN');
+
+        // PASSO 1: Criar Cliente (Empresa)
+        const clienteResult = await client.query(
+            `INSERT INTO clientes (nome, cpf_cnpj, email, ativo) 
+             VALUES ($1, $2, $3, true) 
+             RETURNING id, nome`,
+            [nome_empresa.trim(), cpf_cnpj || null, email_empresa || null]
+        );
+        const novoClienteId = clienteResult.rows[0].id;
+        console.log(`[Provision] Cliente criado: ID ${novoClienteId} - ${nome_empresa}`);
+
+        // PASSO 2: Criar Usuário já vinculado ao Cliente
+        const usuarioResult = await client.query(
+            `INSERT INTO usuarios (nome, email, senha_hash, cargo, cliente_id, deve_trocar_senha) 
+             VALUES ($1, $2, $3, 'operador', $4, true) 
+             RETURNING id, nome, email, cargo, cliente_id`,
+            [nome_usuario.trim(), email_usuario.toLowerCase().trim(), senhaHash, novoClienteId]
+        );
+        console.log(`[Provision] Usuário criado: ID ${usuarioResult.rows[0].id} vinculado ao Cliente ${novoClienteId}`);
+
+        // COMMIT - Ambos foram criados com sucesso
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Tenant provisionado com sucesso!',
+            empresa: {
+                id: novoClienteId,
+                nome: nome_empresa
+            },
+            usuario: usuarioResult.rows[0],
+            tempPassword: tempPassword // Admin deve copiar e enviar ao cliente
+        });
+
+    } catch (error) {
+        // ROLLBACK - Se qualquer erro, desfaz tudo
+        await client.query('ROLLBACK');
+        console.error('Erro em /api/auth/provision-tenant:', error);
+
+        if (error.code === '23505') {
+            // Violação de unicidade
+            if (error.constraint?.includes('cpf_cnpj')) {
+                return res.status(409).json({
+                    error: 'CPF/CNPJ já cadastrado',
+                    code: 'CNPJ_EXISTS'
+                });
+            }
+            if (error.constraint?.includes('email')) {
+                return res.status(409).json({
+                    error: 'Email já cadastrado',
+                    code: 'EMAIL_EXISTS'
+                });
+            }
+        }
+
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    } finally {
+        client.release();
+    }
+});
+
+// ============================================
+// GET /api/auth/clientes-list (Admin only)
+// Lista simplificada de clientes para select
+// ============================================
+router.get('/clientes-list', authMiddleware, requireRole(['admin']), async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT id, nome, cpf_cnpj FROM clientes WHERE ativo = true ORDER BY nome ASC'
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Erro em /api/auth/clientes-list:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });

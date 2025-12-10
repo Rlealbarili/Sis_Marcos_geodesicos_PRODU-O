@@ -9,7 +9,36 @@ const registrarLog = require('../utils/logger');
 
 router.get('/', async (req, res) => {
     try {
-        const { tipo, municipio, cliente_id, ativo, busca } = req.query;
+        const { tipo, municipio, cliente_id: filtroClienteId, ativo, busca } = req.query;
+
+        // MULTI-TENANT: Filtrar por cliente_id se não for admin
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteIdUsuario = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna lista vazia
+        if (!isAdmin && !clienteIdUsuario) {
+            return res.json({
+                success: true,
+                data: [],
+                total: 0
+            });
+        }
+
+        const params = [];
+        let paramIndex = 1;
+        let whereClause = '1=1';
+
+        // MULTI-TENANT: Se não for admin, forçar filtro pelo cliente do usuário
+        if (!isAdmin && clienteIdUsuario) {
+            whereClause += ` AND p.cliente_id = $${paramIndex}`;
+            params.push(clienteIdUsuario);
+            paramIndex++;
+        } else if (filtroClienteId) {
+            // Admin pode filtrar por qualquer cliente via query param
+            whereClause += ` AND p.cliente_id = $${paramIndex}`;
+            params.push(filtroClienteId);
+            paramIndex++;
+        }
 
         let sqlQuery = `SELECT
             p.id,
@@ -29,11 +58,9 @@ router.get('/', async (req, res) => {
             c.cpf_cnpj as cliente_cpf_cnpj
             FROM propriedades p
             LEFT JOIN clientes c ON p.cliente_id = c.id
-            WHERE 1=1`;
-        const params = [];
-        let paramIndex = 1;
+            WHERE ${whereClause}`;
 
-        // Filtros
+        // Filtros adicionais
         if (tipo && tipo !== 'todos') {
             sqlQuery += ` AND tipo = $${paramIndex}`;
             params.push(tipo.toUpperCase());
@@ -46,11 +73,7 @@ router.get('/', async (req, res) => {
             paramIndex++;
         }
 
-        if (cliente_id) {
-            sqlQuery += ` AND cliente_id = $${paramIndex}`;
-            params.push(cliente_id);
-            paramIndex++;
-        }
+        // NOTA: filtro cliente_id agora é tratado pela lógica multi-tenant acima
 
         if (ativo !== undefined) {
             sqlQuery += ` AND ativo = $${paramIndex}`;
@@ -142,7 +165,7 @@ router.post('/', async (req, res) => {
             area_m2,
             perimetro_m,
             endereco,
-            cliente_id,
+            cliente_id: bodyClienteId, // Pode ser enviado por Admin
             observacoes
         } = req.body;
 
@@ -162,12 +185,24 @@ router.post('/', async (req, res) => {
             });
         }
 
+        // MULTI-TENANT: Determinar cliente_id
+        // - Admin pode especificar cliente_id no body
+        // - Outros usuários usam seu próprio cliente_id do token
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        let clienteIdFinal = null;
+
+        if (isAdmin && bodyClienteId) {
+            clienteIdFinal = bodyClienteId;
+        } else if (req.user && req.user.cliente_id) {
+            clienteIdFinal = req.user.cliente_id;
+        }
+
         const result = await query(
             `INSERT INTO propriedades
             (nome_propriedade, tipo, matricula, municipio, comarca, uf, area_m2, perimetro_m, endereco, cliente_id, observacoes)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *`,
-            [nome_propriedade, tipoUpper, matricula, municipio, comarca, uf || 'PR', area_m2, perimetro_m, endereco, cliente_id, observacoes]
+            [nome_propriedade, tipoUpper, matricula, municipio, comarca, uf || 'PR', area_m2, perimetro_m, endereco, clienteIdFinal, observacoes]
         );
 
         // Registrar log de auditoria

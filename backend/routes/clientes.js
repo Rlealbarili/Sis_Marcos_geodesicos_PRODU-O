@@ -5,11 +5,26 @@ const registrarLog = require('../utils/logger');
 
 // ========================================
 // GET /api/clientes - Listar todos
+// MULTI-TENANT: Admin vê todos, outros veem apenas seu próprio cliente
 // ========================================
 
 router.get('/', async (req, res) => {
     try {
         const { tipo_pessoa, ativo, busca } = req.query;
+
+        // MULTI-TENANT: Verificar permissões
+        const isAdmin = req.user && req.user.cargo === 'admin';
+        const clienteId = req.user ? req.user.cliente_id : null;
+
+        // Se não for admin E não tem cliente_id → retorna lista vazia
+        if (!isAdmin && !clienteId) {
+            return res.json({
+                success: true,
+                data: [],
+                total: 0,
+                message: 'Nenhum cliente vinculado ao usuário'
+            });
+        }
 
         let sqlQuery = `SELECT
             id,
@@ -28,7 +43,14 @@ router.get('/', async (req, res) => {
         const params = [];
         let paramIndex = 1;
 
-        // Filtros
+        // MULTI-TENANT: Se não for admin, filtrar apenas pelo próprio cliente
+        if (!isAdmin && clienteId) {
+            sqlQuery += ` AND id = $${paramIndex}`;
+            params.push(clienteId);
+            paramIndex++;
+        }
+
+        // Filtros adicionais
         if (tipo_pessoa && tipo_pessoa !== 'todos') {
             sqlQuery += ` AND tipo_pessoa = $${paramIndex}`;
             params.push(tipo_pessoa);

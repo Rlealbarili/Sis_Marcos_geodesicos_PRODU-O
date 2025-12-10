@@ -38,11 +38,13 @@ const authMiddleware = (req, res, next) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        // Injetar dados do usuário na requisição
+        // Injetar dados do usuário na requisição (inclui cliente_id para Multi-Tenant)
         req.user = {
             id: decoded.id,
             email: decoded.email,
             cargo: decoded.cargo,
+            nome: decoded.nome,
+            cliente_id: decoded.cliente_id, // CAMPO CRÍTICO MULTI-TENANT
             deve_trocar_senha: decoded.deve_trocar_senha
         };
 
@@ -109,6 +111,8 @@ const optionalAuth = (req, res, next) => {
             id: decoded.id,
             email: decoded.email,
             cargo: decoded.cargo,
+            nome: decoded.nome,
+            cliente_id: decoded.cliente_id,
             deve_trocar_senha: decoded.deve_trocar_senha
         };
     } catch (error) {
