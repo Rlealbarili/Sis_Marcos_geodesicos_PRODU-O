@@ -307,3 +307,153 @@
     }
 
 })(window, document);
+
+// ============================================
+// WIZARD DE IMPORTAÇÃO GEOESPACIAL
+// Protocolo Petrovich - Fase 2.2
+// ============================================
+
+/**
+ * Processa upload de arquivo geoespacial (DXF, KML, GeoJSON)
+ * com wizard de zona UTM e preview de heurística
+ */
+window.processarUploadGeo = async function (inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    console.log('[Wizard Import] Arquivo selecionado:', file.name);
+
+    // 1. Wizard Passo 1: Zona UTM
+    const zonaDefault = "22S";
+    const zonaUser = prompt(
+        `Configuração de Projeção UTM\n\n` +
+        `O arquivo "${file.name}" precisa ser convertido para coordenadas geográficas.\n\n` +
+        `Informe a Zona UTM do arquivo:\n` +
+        `• Paraná/SP/SC: 22S\n` +
+        `• RS/MT/MS: 21S ou 22S\n` +
+        `• RJ/MG/ES: 23S\n` +
+        `• Nordeste: 24S ou 25S\n\n` +
+        `Se não souber, mantenha o padrão:`,
+        zonaDefault
+    );
+
+    if (zonaUser === null) {
+        console.log('[Wizard Import] Cancelado pelo usuário');
+        inputElement.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('utmZone', zonaUser || zonaDefault);
+
+    try {
+        // Feedback visual
+        if (window.showToast) {
+            window.showToast('Processando arquivo com IA...', 'info');
+        }
+
+        // 2. Envio para Backend
+        const response = await fetch(`${window.API_URL}/api/upload-geo`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.message);
+        }
+
+        console.log('[Wizard Import] Resposta do backend:', result);
+
+        // 3. Wizard Passo 2: Preview da Heurística
+        const preview = result.preview || {};
+
+        // Formatar área se existir
+        let areaTexto = 'Não detectada';
+        if (preview.area) {
+            areaTexto = Number(preview.area).toLocaleString('pt-BR') + ' m²';
+        }
+
+        const textoPreview =
+            `Análise de Arquivo Concluída!\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `Matrícula: ${preview.matricula || 'Não detectada'}\n` +
+            `Nome/Fazenda: ${preview.nome || 'Não detectado'}\n` +
+            `Proprietário: ${preview.proprietario || 'Não detectado'}\n` +
+            `Área: ${areaTexto}\n` +
+            `Zona UTM: ${result.metadata?.zoneUsed || zonaUser}\n` +
+            `Polígonos: ${result.metadata?.featuresCount || 1}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `Deseja preencher o cadastro com estes dados?`;
+
+        const confirmacao = confirm(textoPreview);
+
+        if (confirmacao) {
+            // 4. Wizard Passo 3: Preencher Cadastro
+            if (typeof window.abrirModal === 'function') {
+                window.abrirModal('modal-nova-propriedade');
+
+                // Preenchimento Automático com delay para modal abrir
+                setTimeout(() => {
+                    // Nome da propriedade
+                    const nomeInput = document.getElementById('nova-prop-nome');
+                    if (nomeInput) {
+                        if (preview.nome) {
+                            nomeInput.value = preview.nome;
+                        } else if (preview.proprietario) {
+                            nomeInput.value = 'Propriedade de ' + preview.proprietario;
+                        } else {
+                            nomeInput.value = file.name.replace(/\.(dxf|kml|geojson|json)$/i, '');
+                        }
+                    }
+
+                    // Matrícula
+                    const matriculaInput = document.getElementById('nova-prop-matricula');
+                    if (matriculaInput && preview.matricula) {
+                        matriculaInput.value = preview.matricula;
+                    }
+
+                    // Área
+                    const areaInput = document.getElementById('nova-prop-area');
+                    if (areaInput && preview.area) {
+                        areaInput.value = preview.area;
+                    }
+
+                    // Salvar GeoJSON na memória para envio posterior
+                    window.TEMP_GEOJSON_IMPORT = result.data;
+                    console.log('[Wizard Import] GeoJSON em cache para salvamento');
+
+                    if (window.showToast) {
+                        window.showToast('Formulário preenchido! Verifique os dados.', 'success');
+                    }
+                }, 500);
+            } else {
+                alert('Modal de cadastro não encontrado. Abra manualmente e preencha os dados.');
+            }
+        }
+
+    } catch (error) {
+        console.error('[Wizard Import] Erro:', error);
+        if (window.showToast) {
+            window.showToast('Erro: ' + error.message, 'error');
+        } else {
+            alert('Erro na importação: ' + error.message);
+        }
+    } finally {
+        inputElement.value = ''; // Reset input
+    }
+};
+
+// Listener para input de arquivo geo (se existir)
+document.addEventListener('DOMContentLoaded', () => {
+    const geoInput = document.getElementById('file-input-geo');
+    if (geoInput) {
+        geoInput.addEventListener('change', function () {
+            window.processarUploadGeo(this);
+        });
+    }
+});
+
+console.log('✅ Importador GEO Wizard carregado');

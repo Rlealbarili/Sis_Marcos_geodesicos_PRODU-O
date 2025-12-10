@@ -390,19 +390,61 @@ window.verPropriedadeNoMapa = async function (propriedadeId) {
 
         // Popup com informações - abrir após um delay para dar tempo do zoom
         setTimeout(() => {
+            const tipoLower = (prop.tipo || 'rural').toLowerCase();
+            const tipoIcon = tipoLower === 'urbana' ? 'building-2' : 'trees';
+            const tipoLabel = tipoLower === 'urbana' ? 'URBANA' : 'RURAL';
+
+            // Formatar área
+            let areaTexto = '';
+            if (prop.area_m2) {
+                const areaHa = (prop.area_m2 / 10000).toFixed(4);
+                const areaM2 = parseFloat(prop.area_m2).toLocaleString('pt-BR');
+                areaTexto = `${areaHa} ha (${areaM2} m²)`;
+            }
+
+            // Formatar matrícula
+            const formatarMat = (mat) => {
+                if (!mat || mat.startsWith('IMPORT-') || mat.startsWith('KML-')) {
+                    return '<span class="propriedade-popup-value not-informed">Não informada</span>';
+                }
+                return `<span class="propriedade-popup-value">${mat}</span>`;
+            };
+
             window.highlightLayer.bindPopup(`
-                <div style="min-width: 220px; padding: 5px;">
-                    <h4 style="margin: 0 0 10px 0; color: ${cor}; font-size: 1.1rem;">
-                        🏠 ${prop.nome_propriedade || 'Propriedade'}
-                    </h4>
-                    <div style="font-size: 0.9rem; line-height: 1.5;">
-                        <strong>Tipo:</strong> ${prop.tipo === 'RURAL' ? '🌾 Rural' : '🏢 Urbana'}<br>
-                        <strong>Matrícula:</strong> ${prop.matricula || 'N/A'}<br>
-                        <strong>Local:</strong> ${prop.municipio || 'N/A'} - ${prop.uf || 'N/A'}<br>
-                        ${prop.area_m2 ? `<strong>Área:</strong> ${(prop.area_m2 / 10000).toFixed(4)} ha (${parseFloat(prop.area_m2).toLocaleString('pt-BR')} m²)` : ''}
+                <div class="propriedade-popup">
+                    <div class="propriedade-popup-header">
+                        <div class="propriedade-popup-icon ${tipoLower}">
+                            <i data-lucide="${tipoIcon}" style="width:20px;height:20px;"></i>
+                        </div>
+                        <div class="propriedade-popup-title">
+                            <h3>${prop.nome_propriedade || 'Propriedade'}</h3>
+                            <span class="propriedade-popup-badge ${tipoLower}">${tipoLabel}</span>
+                        </div>
+                    </div>
+                    <div class="propriedade-popup-body">
+                        <div class="propriedade-popup-row">
+                            <span class="propriedade-popup-label">Matrícula</span>
+                            ${formatarMat(prop.matricula)}
+                        </div>
+                        <div class="propriedade-popup-row">
+                            <span class="propriedade-popup-label">Município</span>
+                            <span class="propriedade-popup-value">${prop.municipio || 'N/A'} - ${prop.uf || ''}</span>
+                        </div>
+                        ${areaTexto ? `
+                        <div class="propriedade-popup-section-title">Medições</div>
+                        <div class="propriedade-popup-metrics">
+                            <div class="propriedade-popup-metric">
+                                <span class="propriedade-popup-metric-value">${areaTexto}</span>
+                                <span class="propriedade-popup-metric-label">Área</span>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `).openPopup();
+
+            // Inicializar ícones Lucide no popup
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }, 600);
 
         // Mostrar toast de sucesso

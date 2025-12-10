@@ -536,12 +536,44 @@ async function excluirMarco() {
 // ============== UTILITÁRIOS ==============
 
 function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
+    let toast = document.getElementById('toast');
+
+    // Se o elemento toast não existe, cria dinamicamente
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            transition: opacity 0.3s, transform 0.3s;
+            opacity: 0;
+            transform: translateY(20px);
+        `;
+        document.body.appendChild(toast);
+    }
+
+    // Cores por tipo
+    const colors = {
+        success: '#10B981',
+        error: '#EF4444',
+        warning: '#F59E0B',
+        info: '#3B82F6'
+    };
+
     toast.textContent = message;
-    toast.className = `toast ${type} show`;
+    toast.style.background = colors[type] || colors.info;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
 
     setTimeout(() => {
-        toast.classList.remove('show');
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
     }, 3000);
 }
 

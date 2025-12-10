@@ -329,48 +329,75 @@
                 </div>
 
                 <div id="panel-importar" class="content-panel">
-                    <div style="padding: 40px; max-width: 600px; margin: 0 auto;">
-                        <h2 style="text-align: center; margin-bottom: 30px;">
-                            <i data-lucide="file-text"
-                                style="width:32px;height:32px;vertical-align:middle;margin-right:10px;"></i>
-                            Importar Memorial Descritivo
+                    <div style="padding: 40px; max-width: 1000px; margin: 0 auto;">
+                        <h2
+                            style="text-align: center; margin-bottom: 40px; font-weight: 300; color: var(--text-primary);">
+                            Central de Ingestão de Dados
                         </h2>
 
-                        <!-- Área de Upload (inicial) -->
-                        <div id="upload-area-docx" class="upload-area"
-                            style="cursor:pointer; border:2px dashed var(--border-primary); padding:50px; border-radius:12px; text-align:center; background:var(--bg-secondary); transition: all 0.3s;">
-                            <i data-lucide="upload-cloud"
-                                style="width:64px;height:64px;color:var(--cogep-green);margin-bottom:15px;"></i>
-                            <h3 style="margin:0 0 10px 0;">Clique para Selecionar DOCX</h3>
-                            <p style="color:var(--text-secondary);margin:0;">ou arraste o arquivo aqui</p>
-                            <p style="font-size:12px;color:var(--text-tertiary);margin-top:15px;">Formatos aceitos:
-                                .DOC, .DOCX</p>
-                            <input type="file" id="file-input-docx" accept=".doc,.docx" style="display:none;">
+                        <div class="import-hub-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+
+                            <!-- Card DOCX -->
+                            <div class="import-card">
+                                <div class="import-header" style="border-bottom: 2px solid #3B82F6;">
+                                    <i data-lucide="file-text" style="color: #3B82F6;"></i>
+                                    <h3>Memorial Descritivo</h3>
+                                </div>
+                                <div class="import-body">
+                                    <p>Extração automática de coordenadas e confrontantes a partir de documentos de
+                                        texto.</p>
+
+                                    <div id="upload-area-docx" class="upload-zone">
+                                        <i data-lucide="file-up"></i>
+                                        <span>Selecionar DOCX</span>
+                                    </div>
+                                    <input type="file" id="file-input-docx" accept=".doc,.docx" style="display:none;">
+
+                                    <div id="docx-status" class="status-container"></div>
+                                </div>
+                            </div>
+
+                            <!-- Card CAD/GIS -->
+                            <div class="import-card">
+                                <div class="import-header" style="border-bottom: 2px solid var(--cogep-green);">
+                                    <i data-lucide="layers" style="color: var(--cogep-green);"></i>
+                                    <h3>Projeto Técnico (CAD/GIS)</h3>
+                                </div>
+                                <div class="import-body">
+                                    <p>Importação de geometrias, detecção de matrícula e validação de perímetro.</p>
+
+                                    <div id="upload-area-geo" class="upload-zone"
+                                        onclick="document.getElementById('file-input-geo').click()">
+                                        <i data-lucide="map"></i>
+                                        <span>Selecionar DXF / KML</span>
+                                    </div>
+                                    <input type="file" id="file-input-geo" accept=".dxf,.kml,.geojson,.json"
+                                        style="display:none;" onchange="processarUploadGeo(this)">
+
+                                    <div class="format-badges">
+                                        <span class="badge">.DXF</span>
+                                        <span class="badge">.KML</span>
+                                        <span class="badge">.GeoJSON</span>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
-                        <!-- Área de Preview (após seleção) -->
-                        <div id="preview-area-docx"
-                            style="display:none; border:1px solid var(--border-primary); padding:30px; border-radius:12px; text-align:center; background:var(--bg-secondary);">
-                            <i data-lucide="file-check"
-                                style="width:48px;height:48px;color:var(--cogep-green);margin-bottom:15px;"></i>
-                            <h3 id="file-name-docx" style="margin:0 0 10px 0;">arquivo.docx</h3>
-                            <p style="color:var(--text-secondary);margin:0;">Pronto para processamento</p>
-                        </div>
-
-                        <!-- Área de Status/Feedback -->
-                        <div id="docx-status" style="margin-top:20px;"></div>
-
-                        <!-- Informações -->
+                        <!-- Info Box -->
                         <div
-                            style="margin-top:30px; padding:20px; background:var(--bg-tertiary); border-radius:8px; font-size:14px;">
-                            <h4 style="margin:0 0 10px 0; display:flex; align-items:center; gap:8px;">
-                                <i data-lucide="info" style="width:18px;height:18px;"></i>
-                                O que será extraído:
+                            style="margin-top: 40px; padding: 20px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-primary);">
+                            <h4 style="margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="info" style="width: 18px; height: 18px;"></i> Protocolo de Dados
                             </h4>
-                            <ul style="margin:0; padding-left:20px; color:var(--text-secondary);">
-                                <li>Coordenadas UTM/Geográficas dos vértices</li>
-                                <li>Nome da propriedade e confrontantes</li>
-                                <li>Geometria do polígono para visualização no mapa</li>
+                            <ul
+                                style="font-size: 14px; color: var(--text-secondary); margin: 0; padding-left: 20px; line-height: 1.6;">
+                                <li><strong>DXF:</strong> O sistema buscará automaticamente textos (Matrícula, Área)
+                                    dentro dos polígonos fechados.</li>
+                                <li><strong>Projeção:</strong> Arquivos CAD devem estar em UTM SIRGAS 2000. O sistema
+                                    solicitará a Zona se não detectar.</li>
+                                <li><strong>DOCX:</strong> O documento deve conter as coordenadas descritas em formato
+                                    legível (Vértice -> E/N).</li>
                             </ul>
                         </div>
                     </div>
@@ -380,7 +407,14 @@
                     <div style="padding: 20px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                             <h2>Propriedades</h2>
-                            <button class="btn btn-primary" id="btn-nova-prop">Nova Propriedade</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-secondary"
+                                    onclick="document.getElementById('file-input-geo').click()"
+                                    title="Importar DXF/KML rápido">
+                                    <i data-lucide="upload-cloud"></i> <span class="desktop-only">Importar CAD</span>
+                                </button>
+                                <button class="btn btn-primary" id="btn-nova-prop">Nova Propriedade</button>
+                            </div>
                         </div>
                         <div id="propriedades-grid"></div>
                     </div>

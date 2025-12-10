@@ -44,6 +44,12 @@ app.use((req, res, next) => {
 });
 
 // ============================================
+// ROTAS MODULARES
+// ============================================
+const uploadGeoRouter = require('./routes/upload-geo');
+app.use('/api/upload-geo', uploadGeoRouter);
+
+// ============================================
 // ENDPOINT: Health Check
 // ============================================
 

@@ -1482,3 +1482,115 @@ select.input {
   margin-top: var(--space-1);
   display: block;
 }
+
+/* ========================================
+   HUB DE IMPORTAÇÃO
+   ======================================== */
+
+.import-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.import-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.import-header {
+  padding: 20px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.import-header i {
+  width: 24px;
+  height: 24px;
+}
+
+.import-body {
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.import-body p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border-secondary);
+  border-radius: 8px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-primary);
+}
+
+.upload-zone:hover {
+  border-color: var(--cogep-green);
+  background: var(--bg-hover);
+}
+
+.upload-zone i {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+}
+
+.upload-zone span {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.format-badges {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.format-badges .badge {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.status-container {
+  min-height: 20px;
+}
+
+/* Responsividade do Grid */
+@media (max-width: 768px) {
+  .import-hub-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+}
