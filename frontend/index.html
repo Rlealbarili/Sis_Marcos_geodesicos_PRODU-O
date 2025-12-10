@@ -20,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.2/dist/proj4.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <style>
         .app-container {
@@ -220,6 +221,9 @@
             </div>
 
             <div class="sidebar-menu">
+                <a href="#" class="nav-link" data-view="dashboard">
+                    <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
+                </a>
                 <a href="#" class="nav-link active" data-view="mapa">
                     <i data-lucide="map"></i> <span>Mapa</span>
                 </a>
@@ -286,6 +290,153 @@
                 <div id="map"></div>
 
                 <!-- PAINÉIS: Sobrepõem o mapa quando ativos -->
+
+                <!-- DASHBOARD: Centro de Comando Geodésico -->
+                <div id="panel-dashboard" class="content-panel">
+                    <div style="padding: 30px; max-width: 1400px; margin: 0 auto;">
+                        <!-- Header -->
+                        <div style="margin-bottom: 30px;">
+                            <h1 style="font-size: 1.8rem; margin-bottom: 5px; color: var(--text-primary);">
+                                <i data-lucide="layout-dashboard"
+                                    style="width:28px;height:28px;vertical-align:middle;margin-right:10px;color:var(--cogep-green);"></i>
+                                Centro de Comando Geodésico
+                            </h1>
+                            <p style="color: var(--text-secondary); font-size: 0.95rem;">
+                                Visão geral do seu acervo de marcos e propriedades
+                            </p>
+                        </div>
+
+                        <!-- KPIs Grid (4 Cards Grandes) -->
+                        <div class="dashboard-kpis-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                            <!-- Card: Área Total -->
+                            <div class="dashboard-kpi-card"
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div
+                                        style="width: 56px; height: 56px; border-radius: 12px; background: rgba(132, 194, 37, 0.15); display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="trees" style="width:28px;height:28px;color:#84c225;"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+                                            Área Mapeada</div>
+                                        <div id="kpi-hectares"
+                                            style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">0
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--text-muted);">hectares</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card: Total Marcos -->
+                            <div class="dashboard-kpi-card"
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div
+                                        style="width: 56px; height: 56px; border-radius: 12px; background: rgba(59, 130, 246, 0.15); display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="map-pin" style="width:28px;height:28px;color:#3B82F6;"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+                                            Acervo de Marcos</div>
+                                        <div id="kpi-marcos"
+                                            style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">0
+                                        </div>
+                                        <div id="kpi-marcos-pct" style="font-size: 0.8rem; color: var(--cogep-green);">
+                                            0% levantados</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card: Propriedades -->
+                            <div class="dashboard-kpi-card"
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div
+                                        style="width: 56px; height: 56px; border-radius: 12px; background: rgba(139, 92, 246, 0.15); display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="home" style="width:28px;height:28px;color:#8B5CF6;"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+                                            Propriedades</div>
+                                        <div id="kpi-propriedades"
+                                            style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">0
+                                        </div>
+                                        <div id="kpi-eficiencia" style="font-size: 0.8rem; color: var(--text-muted);">0
+                                            marcos/prop</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card: Clientes -->
+                            <div class="dashboard-kpi-card"
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div
+                                        style="width: 56px; height: 56px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="users" style="width:28px;height:28px;color:#F59E0B;"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+                                            Clientes Ativos</div>
+                                        <div id="kpi-clientes"
+                                            style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">0
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--text-muted);">cadastrados</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gráficos Grid (2 Colunas) -->
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                            <!-- Gráfico: Timeline de Produção -->
+                            <div
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <h3 style="font-size: 1rem; margin-bottom: 20px; color: var(--text-primary);">
+                                    <i data-lucide="trending-up"
+                                        style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--cogep-green);"></i>
+                                    Evolução do Acervo (6 meses)
+                                </h3>
+                                <div style="height: 250px;">
+                                    <canvas id="chart-timeline"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Gráfico: Distribuição de Marcos -->
+                            <div
+                                style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                                <h3 style="font-size: 1rem; margin-bottom: 20px; color: var(--text-primary);">
+                                    <i data-lucide="pie-chart"
+                                        style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:#3B82F6;"></i>
+                                    Composição Geodésica
+                                </h3>
+                                <div style="height: 250px; display: flex; justify-content: center;">
+                                    <canvas id="chart-distribuicao"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Clientes -->
+                        <div
+                            style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 24px;">
+                            <h3 style="font-size: 1rem; margin-bottom: 20px; color: var(--text-primary);">
+                                <i data-lucide="trophy"
+                                    style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:#F59E0B;"></i>
+                                Top 5 Clientes
+                            </h3>
+                            <div id="top-clientes-list" style="display: grid; gap: 10px;">
+                                <!-- Preenchido via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="panel-marcos" class="content-panel">
                     <div style="padding: 20px;">
                         <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
@@ -756,6 +907,7 @@
     <script src="js/modules/clientes.js"></script>
     <script src="js/modules/historico.js"></script>
     <script src="js/modules/propriedades.js"></script>
+    <script src="js/modules/dashboard.js"></script>
 
     <script>
         // ==========================================
@@ -800,6 +952,7 @@
                     }
 
                     // Lazy load de dados
+                    if (idAlvo === 'dashboard' && window.carregarDashboard) window.carregarDashboard();
                     if (idAlvo === 'marcos' && window.carregarMarcosLista) window.carregarMarcosLista();
                     if (idAlvo === 'propriedades' && window.carregarPropriedadesLista) window.carregarPropriedadesLista();
                     if (idAlvo === 'clientes' && window.carregarClientes) window.carregarClientes();

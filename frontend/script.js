@@ -1344,11 +1344,12 @@ function verPropriedadeNoMapa(propriedadeId) {
 let tileLayerAtual = null;
 const tileLayers = {
     padrao: null,
-    satelite: null  // Google Hybrid (Satélite + Ruas)
+    topo: null,     // OpenTopoMap (Relevo)
+    satelite: null  // Esri World Imagery (Gratuito)
 };
 
 function criarControleCamadas() {
-    console.log('Criando controle de camadas (Google Hybrid)...');
+    console.log('Criando controle de camadas (3 Camadas Gratuitas)...');
 
     // Inicializar camadas de dados (sempre ativas)
     if (!marcosLayer) {
@@ -1358,22 +1359,26 @@ function criarControleCamadas() {
         poligonosLayer = L.layerGroup().addTo(map);
     }
 
-    // OpenStreetMap (Mapa Padrão)
+    // 1. OpenStreetMap Padrão (O mais detalhado para ruas/bairros)
     tileLayers.padrao = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     });
 
-    // Google Satélite Híbrido (Imagem + Ruas + Bairros)
-    // lyrs=s,h: s=satellite, h=hybrid (streets overlay)
-    tileLayers.satelite = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '© Google Maps'
+    // 2. OpenTopoMap (Excelente para relevo/rural - Gratuito)
+    tileLayers.topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
     });
 
-    // Adicionar Google Híbrido como padrão inicial (mais impressionante)
-    tileLayerAtual = tileLayers.satelite.addTo(map);
+    // 3. Esri World Imagery (Satélite gratuito para uso básico)
+    tileLayers.satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+    });
+
+    // Adicionar OSM como padrão inicial
+    tileLayerAtual = tileLayers.padrao.addTo(map);
 
     // Criar controle customizado de toggle
     criarToggleMapaBase();
@@ -1381,10 +1386,10 @@ function criarControleCamadas() {
     // Configurar Scale-Dependent Rendering
     configurarRenderizacaoPorZoom();
 
-    console.log('✅ Controle de camadas criado (Google Hybrid ativo)');
+    console.log('✅ 3 Camadas configuradas (OSM + Topo + Satélite)');
 }
 
-// Toggle profissional para seleção de mapa base
+// Toggle profissional para seleção de mapa base (3 opções)
 function criarToggleMapaBase() {
     const MapToggleControl = L.Control.extend({
         options: { position: 'topright' },
@@ -1392,10 +1397,13 @@ function criarToggleMapaBase() {
         onAdd: function (map) {
             const container = L.DomUtil.create('div', 'mapa-toggle-control');
             container.innerHTML = `
-                <button id="btn-mapa-padrao" class="map-toggle-btn" title="Mapa Padrão">
+                <button id="btn-mapa-padrao" class="map-toggle-btn active" title="Mapa de Ruas (OSM)">
                     <i data-lucide="map" style="width:18px;height:18px;"></i>
                 </button>
-                <button id="btn-mapa-satelite" class="map-toggle-btn active" title="Satélite">
+                <button id="btn-mapa-topo" class="map-toggle-btn" title="Topográfico (Relevo)">
+                    <i data-lucide="mountain" style="width:18px;height:18px;"></i>
+                </button>
+                <button id="btn-mapa-satelite" class="map-toggle-btn" title="Satélite (Esri)">
                     <i data-lucide="globe-2" style="width:18px;height:18px;"></i>
                 </button>
             `;
@@ -1413,6 +1421,7 @@ function criarToggleMapaBase() {
     // Aguardar DOM e adicionar listeners
     setTimeout(() => {
         document.getElementById('btn-mapa-padrao')?.addEventListener('click', () => setMapaBase('padrao'));
+        document.getElementById('btn-mapa-topo')?.addEventListener('click', () => setMapaBase('topo'));
         document.getElementById('btn-mapa-satelite')?.addEventListener('click', () => setMapaBase('satelite'));
 
         // Renderizar ícones Lucide

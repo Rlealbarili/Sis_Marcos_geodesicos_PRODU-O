@@ -49,6 +49,9 @@ app.use((req, res, next) => {
 const uploadGeoRouter = require('./routes/upload-geo');
 app.use('/api/upload-geo', uploadGeoRouter);
 
+const dashboardRouter = require('./routes/dashboard');
+app.use('/api/dashboard', dashboardRouter);
+
 // ============================================
 // ENDPOINT: Health Check
 // ============================================
