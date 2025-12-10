@@ -1344,11 +1344,11 @@ function verPropriedadeNoMapa(propriedadeId) {
 let tileLayerAtual = null;
 const tileLayers = {
     padrao: null,
-    satelite: null
+    satelite: null  // Google Hybrid (Satélite + Ruas)
 };
 
 function criarControleCamadas() {
-    console.log('Criando controle de camadas (simplificado)...');
+    console.log('Criando controle de camadas (Google Hybrid)...');
 
     // Inicializar camadas de dados (sempre ativas)
     if (!marcosLayer) {
@@ -1358,19 +1358,22 @@ function criarControleCamadas() {
         poligonosLayer = L.layerGroup().addTo(map);
     }
 
-    // Inicializar tile layers
+    // OpenStreetMap (Mapa Padrão)
     tileLayers.padrao = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19
     });
 
-    tileLayers.satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri',
-        maxZoom: 19
+    // Google Satélite Híbrido (Imagem + Ruas + Bairros)
+    // lyrs=s,h: s=satellite, h=hybrid (streets overlay)
+    tileLayers.satelite = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '© Google Maps'
     });
 
-    // Adicionar mapa padrão como inicial
-    tileLayerAtual = tileLayers.padrao.addTo(map);
+    // Adicionar Google Híbrido como padrão inicial (mais impressionante)
+    tileLayerAtual = tileLayers.satelite.addTo(map);
 
     // Criar controle customizado de toggle
     criarToggleMapaBase();
@@ -1378,7 +1381,7 @@ function criarControleCamadas() {
     // Configurar Scale-Dependent Rendering
     configurarRenderizacaoPorZoom();
 
-    console.log('✅ Controle de camadas criado (toggle + zoom inteligente)');
+    console.log('✅ Controle de camadas criado (Google Hybrid ativo)');
 }
 
 // Toggle profissional para seleção de mapa base
@@ -1389,10 +1392,10 @@ function criarToggleMapaBase() {
         onAdd: function (map) {
             const container = L.DomUtil.create('div', 'mapa-toggle-control');
             container.innerHTML = `
-                <button id="btn-mapa-padrao" class="map-toggle-btn active" title="Mapa Padrão">
+                <button id="btn-mapa-padrao" class="map-toggle-btn" title="Mapa Padrão">
                     <i data-lucide="map" style="width:18px;height:18px;"></i>
                 </button>
-                <button id="btn-mapa-satelite" class="map-toggle-btn" title="Satélite">
+                <button id="btn-mapa-satelite" class="map-toggle-btn active" title="Satélite">
                     <i data-lucide="globe-2" style="width:18px;height:18px;"></i>
                 </button>
             `;
