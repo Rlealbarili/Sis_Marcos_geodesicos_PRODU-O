@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 1. NODE.JS (API)
+  app_inventario:
+    build:
+      context: ../       # <--- APONTA PARA A RAIZ DO PROJETO
+      dockerfile: Dockerfile
+    container_name: app_inventario_aws
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      # Variáveis injetadas pelo .env da AWS
+      POSTGRES_HOST: ${RDS_HOST}
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: marcos_geodesicos
+      POSTGRES_USER: ${RDS_USER}
+      POSTGRES_PASSWORD: ${RDS_PASSWORD}
+      UNSTRUCTURED_API_URL: http://unstructured_api:8000/general/v0/general
+      JWT_SECRET: ${JWT_SECRET}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - rede_aws
+
+  # 2. PYTHON WORKER (OCR)
+  unstructured_api:
+    image: downloads.unstructured.io/unstructured-io/unstructured-api:latest
+    container_name: unstructured_api_aws
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+    networks:
+      - rede_aws
+
+  # 3. NGINX (PROXY)
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_proxy_aws
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d  # Mapeia a config local desta pasta
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - app_inventario
+    networks:
+      - rede_aws
+
+  # 4. CERTBOT (SSL)
+  certbot:
+    image: certbot/certbot
+    container_name: certbot_renewer
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  rede_aws:
+    driver: bridge

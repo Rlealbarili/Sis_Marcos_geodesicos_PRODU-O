@@ -29,6 +29,12 @@ console.log('✅ EPSG:31982 definido:', proj4.defs('EPSG:31982'));
 
 // Função async para inicializar o sistema (NOVO SISTEMA POSTGRESQL)
 async function inicializarSistema() {
+    // AUTH GUARD: Não carregar dados se não autenticado
+    if (typeof AuthClient !== 'undefined' && !AuthClient.isAuthenticated()) {
+        console.log('⏳ Aguardando autenticação...');
+        return;
+    }
+
     console.log('🚀 INICIALIZANDO SISTEMA...');
 
     try {
@@ -65,15 +71,7 @@ async function inicializarSistema() {
         // 7. Aba inicial
         trocarAba('mapa');
 
-        // Legacy: Solicitar nome do usuário
-        let userName = localStorage.getItem('userName');
-        if (!userName) {
-            userName = prompt('Digite seu nome:') || 'Usuário';
-            localStorage.setItem('userName', userName);
-        }
-        if (document.getElementById('userName')) {
-            document.getElementById('userName').textContent = userName;
-        }
+        // Usuário agora é gerenciado pelo AuthClient
 
         console.log('✅ SISTEMA INICIALIZADO!');
 

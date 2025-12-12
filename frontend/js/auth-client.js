@@ -242,15 +242,11 @@ const AuthClient = {
         overlay.id = 'auth-overlay';
         overlay.innerHTML = `
             <div class="auth-container">
-                <div class="auth-logo">
-                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
-                        <path d="M2 12h20"/>
-                    </svg>
+                <div class="auth-logo" style="display: flex; justify-content: center; margin-bottom: 30px;">
+                    <!-- Logo COGEP Completo (Imagem única) -->
+                    <img src="images/cogep-logo-full.png" alt="COGEP" style="height: 50px; width: auto;">
                 </div>
-                <h1 class="auth-title">COGEP</h1>
-                <p class="auth-subtitle">Sistema de Marcos Geodésicos</p>
+                <p class="auth-subtitle">Inventário Geodésico</p>
                 
                 <form id="login-form" class="auth-form">
                     <div class="auth-field">
@@ -271,8 +267,6 @@ const AuthClient = {
                         </svg>
                     </button>
                 </form>
-                
-                <p class="auth-footer">Protocolo Bunker v1.0</p>
             </div>
         `;
 
@@ -286,7 +280,7 @@ const AuthClient = {
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                background: #000000;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -301,20 +295,18 @@ const AuthClient = {
             }
             
             .auth-container {
-                background: rgba(255, 255, 255, 0.05);
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #000000;
+                border: 1px solid rgba(132, 194, 37, 0.3);
                 border-radius: 20px;
-                padding: 40px;
+                padding: 50px 40px;
                 width: 100%;
-                max-width: 400px;
+                max-width: 420px;
                 text-align: center;
-                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 0 60px rgba(132, 194, 37, 0.08);
             }
             
             .auth-logo {
-                color: #00d9ff;
-                margin-bottom: 20px;
+                margin-bottom: 30px;
             }
             
             .auth-title {
@@ -326,9 +318,10 @@ const AuthClient = {
             }
             
             .auth-subtitle {
-                color: rgba(255, 255, 255, 0.6);
-                font-size: 0.9rem;
-                margin: 0 0 30px 0;
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.95rem;
+                margin: 0 0 35px 0;
+                letter-spacing: 1px;
             }
             
             .auth-form {
@@ -351,8 +344,8 @@ const AuthClient = {
             .auth-field input {
                 width: 100%;
                 padding: 14px 16px;
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(132, 194, 37, 0.25);
                 border-radius: 10px;
                 color: #fff;
                 font-size: 1rem;
@@ -362,9 +355,9 @@ const AuthClient = {
             
             .auth-field input:focus {
                 outline: none;
-                border-color: #00d9ff;
-                background: rgba(255, 255, 255, 0.12);
-                box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+                border-color: #84c225;
+                background: rgba(132, 194, 37, 0.08);
+                box-shadow: 0 0 20px rgba(132, 194, 37, 0.2);
             }
             
             .auth-field input::placeholder {
@@ -385,19 +378,20 @@ const AuthClient = {
                 gap: 10px;
                 width: 100%;
                 padding: 14px;
-                background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+                background: linear-gradient(135deg, #84c225 0%, #6ba31d 100%);
                 border: none;
                 border-radius: 10px;
-                color: #fff;
+                color: #000;
                 font-size: 1rem;
-                font-weight: 600;
+                font-weight: 700;
                 cursor: pointer;
                 transition: all 0.3s ease;
             }
             
             .auth-btn:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+                box-shadow: 0 10px 30px rgba(132, 194, 37, 0.4);
+                background: linear-gradient(135deg, #95d62e 0%, #7ab822 100%);
             }
             
             .auth-btn:disabled {
@@ -600,6 +594,15 @@ const AuthClient = {
         const overlay = document.getElementById('auth-overlay');
         if (overlay) {
             overlay.classList.add('hidden');
+        }
+        // Mostrar app principal
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) {
+            mainApp.style.display = 'flex';
+        }
+        // Disparar inicialização do sistema (se ainda não foi feita)
+        if (typeof inicializarSistema === 'function') {
+            inicializarSistema();
         }
     },
 
